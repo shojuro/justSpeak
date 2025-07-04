@@ -258,6 +258,40 @@
         let synthesis = window.speechSynthesis;
         let isListening = false;
         let messages = [];
+        let sessionId = null;
+        let speakingStartTime = null;
+        let aiSpeakingStartTime = null;
+
+        // Initialize session
+        async function initSession() {
+            try {
+                const response = await fetch('/api/session/start', { method: 'POST' });
+                const data = await response.json();
+                sessionId = data.sessionId;
+                console.log('Session started:', sessionId);
+            } catch (error) {
+                console.error('Failed to start session:', error);
+            }
+        }
+
+        // Track speaking time
+        async function trackSpeakingTime(duration, speaker) {
+            if (!sessionId) return;
+            
+            try {
+                await fetch('/api/session/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sessionId,
+                        speakingTime: duration,
+                        speaker
+                    })
+                });
+            } catch (error) {
+                console.error('Failed to track speaking time:', error);
+            }
+        }
 
         // Initialize speech recognition
         if ('webkitSpeechRecognition' in window) {
@@ -268,6 +302,7 @@
 
             recognition.onstart = () => {
                 isListening = true;
+                speakingStartTime = Date.now();
                 document.getElementById('micButton').classList.add('listening');
                 document.getElementById('status').textContent = 'Listening...';
             };
@@ -289,6 +324,11 @@
 
             recognition.onend = () => {
                 isListening = false;
+                if (speakingStartTime) {
+                    const duration = (Date.now() - speakingStartTime) / 1000;
+                    trackSpeakingTime(duration, 'user');
+                    speakingStartTime = null;
+                }
                 document.getElementById('micButton').classList.remove('listening');
                 document.getElementById('status').textContent = 'Tap to speak';
             };
@@ -301,9 +341,10 @@
             document.getElementById(screenId).classList.add('active');
         }
 
-        function startConversation() {
+        async function startConversation() {
             showScreen('conversation');
             messages = [];
+            await initSession();
             addMessage('assistant', "Hi! I'm excited to chat with you. What would you like to talk about today?");
             speak("Hi! I'm excited to chat with you. What would you like to talk about today?");
         }
@@ -346,22 +387,73 @@
             messages.push({ role, content });
         }
 
-        function speak(text) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'en-US';
-            utterance.rate = 0.9;
+        let currentAudio = null;
+        
+        async function speak(text) {
+            // Update UI
+            document.getElementById('micButton').disabled = true;
+            document.getElementById('status').textContent = 'AI is speaking...';
             
-            utterance.onstart = () => {
-                document.getElementById('micButton').disabled = true;
-                document.getElementById('status').textContent = 'AI is speaking...';
-            };
-            
-            utterance.onend = () => {
-                document.getElementById('micButton').disabled = false;
-                document.getElementById('status').textContent = 'Tap to speak';
-            };
-            
-            synthesis.speak(utterance);
+            try {
+                // Try ElevenLabs first
+                const response = await fetch('/api/speech', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        voiceId: 'pFZP5JQG7iQjIQuC4Bku' // Hope's voice
+                    })
+                });
+                
+                if (response.ok) {
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    currentAudio = new Audio(audioUrl);
+                    aiSpeakingStartTime = Date.now();
+                    
+                    currentAudio.onended = () => {
+                        if (aiSpeakingStartTime) {
+                            const duration = (Date.now() - aiSpeakingStartTime) / 1000;
+                            trackSpeakingTime(duration, 'ai');
+                            aiSpeakingStartTime = null;
+                        }
+                        document.getElementById('micButton').disabled = false;
+                        document.getElementById('status').textContent = 'Tap to speak';
+                        URL.revokeObjectURL(audioUrl);
+                    };
+                    
+                    await currentAudio.play();
+                } else {
+                    throw new Error('ElevenLabs failed, falling back to browser TTS');
+                }
+            } catch (error) {
+                console.log('Falling back to browser TTS:', error.message);
+                // Fallback to browser TTS
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.9;
+                
+                utterance.onstart = () => {
+                    aiSpeakingStartTime = Date.now();
+                    document.getElementById('micButton').disabled = true;
+                    document.getElementById('status').textContent = 'AI is speaking...';
+                };
+                
+                utterance.onend = () => {
+                    if (aiSpeakingStartTime) {
+                        const duration = (Date.now() - aiSpeakingStartTime) / 1000;
+                        trackSpeakingTime(duration, 'ai');
+                        aiSpeakingStartTime = null;
+                    }
+                    document.getElementById('micButton').disabled = false;
+                    document.getElementById('status').textContent = 'Tap to speak';
+                };
+                
+                synthesis.speak(utterance);
+            }
         }
 
         async function respondToUser(userText) {
@@ -385,7 +477,8 @@
                     body: JSON.stringify({
                         message: userText,
                         context: context,
-                        ageGroup: 'adult' // Could be made dynamic based on user selection
+                        ageGroup: 'adult', // Could be made dynamic based on user selection
+                        sessionId: sessionId
                     })
                 });
 

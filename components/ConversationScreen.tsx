@@ -29,7 +29,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const { transcript, isListening, startListening, stopListening } = useSpeechRecognition()
   // Use ElevenLabs with fallback to browser TTS
   const { speak: speakElevenLabs, isSpeaking: isSpeakingElevenLabs } = useElevenLabsSpeech(
-    ELEVENLABS_VOICES.bella, // You can change the voice here
+    ELEVENLABS_VOICES.hope, // Using Hope's voice - soft and warm
     true // Enable fallback to browser TTS
   )
   const { speak: speakBrowser, isSpeaking: isSpeakingBrowser } = useSpeechSynthesis()

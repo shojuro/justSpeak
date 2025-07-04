@@ -17,7 +17,7 @@ interface ElevenLabsVoiceSettings {
 }
 
 export function useElevenLabsSpeech(
-  voiceId: string = 'EXAVITQu4vr4xnSDxMaL', // Default to "Bella" voice
+  voiceId: string = 'pFZP5JQG7iQjIQuC4Bku', // Default to "Hope" voice
   fallbackToBrowser: boolean = true
 ): UseElevenLabsSpeechReturn {
   const [isSpeaking, setIsSpeaking] = useState(false)
@@ -173,6 +173,7 @@ export function useElevenLabsSpeech(
 
 // Available ElevenLabs voice IDs (you can expand this list)
 export const ELEVENLABS_VOICES = {
+  hope: 'pFZP5JQG7iQjIQuC4Bku', // Female, soft and warm
   bella: 'EXAVITQu4vr4xnSDxMaL', // Female, young
   rachel: '21m00Tcm4TlvDq8ikWAM', // Female, mature
   antoni: 'ErXwobaYiN019PkySvjV', // Male, young
