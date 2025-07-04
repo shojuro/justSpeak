@@ -19,6 +19,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isAIThinking, setIsAIThinking] = useState(false)
   const [talkTime, setTalkTime] = useState(0)
+  const [lastTranscript, setLastTranscript] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const talkStartRef = useRef<Date | null>(null)
   const talkTimeIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -38,10 +39,16 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   }, [speak])
 
   useEffect(() => {
-    if (transcript && !isListening && !isSpeaking) {
-      handleUserMessage(transcript)
+    // Only process if we have a meaningful transcript that's different from the last one
+    if (transcript && 
+        transcript.trim().length > 0 && 
+        transcript !== lastTranscript && 
+        !isListening && 
+        !isSpeaking) {
+      setLastTranscript(transcript)
+      handleUserMessage(transcript.trim())
     }
-  }, [transcript, isListening, isSpeaking])
+  }, [transcript, isListening, isSpeaking, lastTranscript])
 
   useEffect(() => {
     if (isListening && !talkStartRef.current) {
@@ -74,18 +81,62 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     setMessages(prev => [...prev, userMessage])
     setIsAIThinking(true)
 
-    // TODO: Replace with actual OpenAI API call
-    setTimeout(() => {
+    try {
+      // Build conversation context (last 10 messages)
+      const context = messages.slice(-10).map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }))
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userText,
+          context: context,
+          ageGroup: 'adult'
+        })
+      })
+
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get response')
+      }
+
+      const aiReply = data.reply
+
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "That's really interesting! Tell me more about that.",
+        content: aiReply,
         timestamp: new Date(),
       }
       setMessages(prev => [...prev, aiResponse])
       setIsAIThinking(false)
       speak(aiResponse.content)
-    }, 1000)
+
+    } catch (error) {
+      console.error('Error getting AI response:', error)
+      
+      // Check if it's an API key error
+      let fallback = "I'm having trouble connecting right now. Can you tell me more about that?"
+      
+      if (error instanceof Error && error.message.includes('API key')) {
+        fallback = "Please configure your OpenAI API key in the .env file to enable AI responses."
+      }
+      const aiResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: fallback,
+        timestamp: new Date(),
+      }
+      setMessages(prev => [...prev, aiResponse])
+      setIsAIThinking(false)
+      speak(aiResponse.content)
+    }
   }
 
   const handleMicrophoneClick = () => {
@@ -102,8 +153,8 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-deep-charcoal to-deep-charcoal-light">
-      <header className="p-4 border-b border-white/10">
+    <div className="h-screen flex flex-col bg-gradient-to-b from-deep-charcoal to-deep-charcoal-light overflow-hidden">
+      <header className="flex-shrink-0 p-4 border-b border-white/10">
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-semibold text-white">TalkTime</h2>
           <button
@@ -115,7 +166,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -148,12 +199,12 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-6 border-t border-white/10">
+      <div className="flex-shrink-0 p-6 border-t border-white/10 bg-gradient-to-t from-deep-charcoal-light to-transparent">
         <div className="flex flex-col items-center space-y-4">
           <button
             onClick={handleMicrophoneClick}
             disabled={isSpeaking || isAIThinking}
-            className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 ${
+            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${
               isListening
                 ? 'bg-warm-coral animate-pulse shadow-xl scale-110'
                 : isSpeaking || isAIThinking
@@ -161,7 +212,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
                 : 'bg-sage-green hover:bg-sage-green/80 shadow-lg hover:scale-105'
             }`}
           >
-            <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
               <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
             </svg>

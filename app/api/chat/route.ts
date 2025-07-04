@@ -126,10 +126,10 @@ export async function POST(req: NextRequest) {
   try {
     // Check if API key is configured
     const apiKey = process.env.OPENAI_API_KEY
-    if (!apiKey) {
-      console.error('OpenAI API key not configured')
+    if (!apiKey || apiKey === 'your_openai_api_key_here') {
+      console.error('OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file')
       return NextResponse.json(
-        { error: 'AI service not configured' },
+        { error: 'AI service not configured. Please add your OpenAI API key to the .env file.' },
         { status: 503 }
       )
     }
