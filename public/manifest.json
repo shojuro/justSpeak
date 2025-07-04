@@ -1,0 +1,26 @@
+{
+  "name": "TalkTime - Practice English Conversation",
+  "short_name": "TalkTime",
+  "description": "A judgment-free conversation partner that helps you practice speaking English",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#2C2C2E",
+  "theme_color": "#FF6B7A",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "lang": "en-US"
+}
