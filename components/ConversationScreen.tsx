@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis'
+import { useElevenLabsSpeech, ELEVENLABS_VOICES } from '@/hooks/useElevenLabsSpeech'
 
 interface ConversationScreenProps {
   onEnd: (talkTime: number) => void
@@ -20,12 +21,22 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [isAIThinking, setIsAIThinking] = useState(false)
   const [talkTime, setTalkTime] = useState(0)
   const [lastTranscript, setLastTranscript] = useState('')
+  const [mode, setMode] = useState<'conversation' | 'learning'>('conversation')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const talkStartRef = useRef<Date | null>(null)
   const talkTimeIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const { transcript, isListening, startListening, stopListening } = useSpeechRecognition()
-  const { speak, isSpeaking } = useSpeechSynthesis()
+  // Use ElevenLabs with fallback to browser TTS
+  const { speak: speakElevenLabs, isSpeaking: isSpeakingElevenLabs } = useElevenLabsSpeech(
+    ELEVENLABS_VOICES.bella, // You can change the voice here
+    true // Enable fallback to browser TTS
+  )
+  const { speak: speakBrowser, isSpeaking: isSpeakingBrowser } = useSpeechSynthesis()
+  
+  // Use ElevenLabs if available, otherwise use browser TTS
+  const speak = speakElevenLabs
+  const isSpeaking = isSpeakingElevenLabs || isSpeakingBrowser
 
   useEffect(() => {
     const welcomeMessage: Message = {
@@ -96,7 +107,8 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         body: JSON.stringify({
           message: userText,
           context: context,
-          ageGroup: 'adult'
+          ageGroup: 'adult',
+          mode: mode
         })
       })
 
@@ -156,7 +168,31 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     <div className="h-screen flex flex-col bg-gradient-to-b from-deep-charcoal to-deep-charcoal-light overflow-hidden">
       <header className="flex-shrink-0 p-4 border-b border-white/10">
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-white">TalkTime</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold text-white">TalkTime</h2>
+            <div className="flex items-center gap-2 text-sm">
+              <button
+                onClick={() => setMode('conversation')}
+                className={`px-3 py-1 rounded-full transition-all ${
+                  mode === 'conversation'
+                    ? 'bg-warm-coral text-white'
+                    : 'bg-white/10 text-white/60 hover:text-white'
+                }`}
+              >
+                Conversation
+              </button>
+              <button
+                onClick={() => setMode('learning')}
+                className={`px-3 py-1 rounded-full transition-all ${
+                  mode === 'learning'
+                    ? 'bg-warm-coral text-white'
+                    : 'bg-white/10 text-white/60 hover:text-white'
+                }`}
+              >
+                Learning Mode
+              </button>
+            </div>
+          </div>
           <button
             onClick={handleEndSession}
             className="text-sm text-white/60 hover:text-white transition-colors"

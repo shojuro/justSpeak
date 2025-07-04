@@ -23,6 +23,7 @@ interface ChatRequest {
   message: string
   context: Message[]
   ageGroup?: 'elementary' | 'middle' | 'high' | 'adult'
+  mode?: 'conversation' | 'learning'
 }
 
 // Check rate limit
@@ -64,8 +65,61 @@ function validateInput(message: string): { isValid: boolean; error?: string } {
   return { isValid: true }
 }
 
-// Build conversation prompt based on age group
-function buildSystemPrompt(ageGroup: string): string {
+// Build learning prompt for grammar correction mode
+function buildLearningPrompt(ageGroup: string): string {
+  const basePrompt = `You are an expert English language tutor. Your role is to help students improve their English through conversation while providing gentle corrections and explanations.
+
+For each user message:
+1. First, acknowledge what they said naturally and continue the conversation
+2. If there are any grammar, vocabulary, or pronunciation issues, gently correct them
+3. Explain WHY the correction is needed (briefly)
+4. Provide the corrected version
+5. Continue the conversation naturally
+
+Format your response like this:
+[Natural conversational response to what they said]
+
+📝 Language Note:
+- Original: "[their incorrect phrase]"
+- Correct: "[corrected phrase]"
+- Why: [Brief explanation]
+
+[Continue the conversation with a follow-up question or comment]
+
+Important:
+- Be encouraging and supportive
+- Focus on major errors, not minor ones
+- Keep corrections brief and clear
+- Maintain a natural conversation flow
+- Track common error patterns for the session summary`
+
+  const ageAdjustments = {
+    elementary: `
+- Use very simple explanations
+- Focus only on basic errors
+- Be extra encouraging`,
+    middle: `
+- Use clear, straightforward explanations
+- Focus on common grammar mistakes
+- Balance correction with encouragement`,
+    high: `
+- Provide more detailed explanations
+- Include advanced grammar points
+- Challenge them appropriately`,
+    adult: `
+- Provide comprehensive explanations
+- Include nuanced language points
+- Treat as an equal learner`
+  }
+
+  return basePrompt + (ageAdjustments[ageGroup as keyof typeof ageAdjustments] || ageAdjustments.adult)
+}
+
+// Build conversation prompt based on age group and mode
+function buildSystemPrompt(ageGroup: string, mode: string = 'conversation'): string {
+  if (mode === 'learning') {
+    return buildLearningPrompt(ageGroup)
+  }
   const basePrompt = `You are a friendly, patient English conversation partner named TalkTime. Your goal is to help students practice speaking English through natural, engaging conversations.
 
 Core Guidelines:
@@ -147,7 +201,7 @@ export async function POST(req: NextRequest) {
 
     // Parse request body
     const body: ChatRequest = await req.json()
-    const { message, context = [], ageGroup = 'adult' } = body
+    const { message, context = [], ageGroup = 'adult', mode = 'conversation' } = body
 
     // Validate input
     const validation = validateInput(message)
@@ -165,7 +219,7 @@ export async function POST(req: NextRequest) {
     const messages: Message[] = [
       {
         role: 'system',
-        content: buildSystemPrompt(ageGroup)
+        content: buildSystemPrompt(ageGroup, mode)
       },
       ...limitedContext,
       {
@@ -185,7 +239,7 @@ export async function POST(req: NextRequest) {
         model: 'gpt-4-turbo-preview',
         messages,
         temperature: 0.8,
-        max_tokens: 150,
+        max_tokens: 400,
         presence_penalty: 0.6,
         frequency_penalty: 0.3
       })
@@ -203,6 +257,7 @@ export async function POST(req: NextRequest) {
     console.log('Conversation:', {
       timestamp: new Date().toISOString(),
       ageGroup,
+      mode,
       messageLength: message.length,
       responseLength: reply.length,
       contextSize: limitedContext.length
