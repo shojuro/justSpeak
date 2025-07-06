@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { AssessmentService } from '@/lib/assessment-service'
+import { getAuthenticatedUser } from '@/lib/auth-helpers'
+import { db } from '@/lib/supabase-db'
 
 // Security: Rate limiting store (in production, use Redis)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
@@ -24,6 +27,7 @@ interface ChatRequest {
   context: Message[]
   ageGroup?: 'elementary' | 'middle' | 'high' | 'adult'
   mode?: 'conversation' | 'learning'
+  sessionId?: string
 }
 
 // Check rate limit
@@ -67,31 +71,40 @@ function validateInput(message: string): { isValid: boolean; error?: string } {
 
 // Build learning prompt for grammar correction mode
 function buildLearningPrompt(ageGroup: string): string {
-  const basePrompt = `You are an expert English language tutor. Your role is to help students improve their English through conversation while providing gentle corrections and explanations.
+  const basePrompt = `You are an expert English language tutor helping students improve their English through conversation. You will analyze their comments, provide corrections, and create detailed feedback.
 
-For each user message:
-1. First, acknowledge what they said naturally and continue the conversation
-2. If there are any grammar, vocabulary, or pronunciation issues, gently correct them
-3. Explain WHY the correction is needed (briefly)
-4. Provide the corrected version
-5. Continue the conversation naturally
+For each user message, follow this process:
 
-Format your response like this:
-[Natural conversational response to what they said]
+1. ASSESS the student's comment for:
+   - Grammar errors
+   - Spelling mistakes
+   - Punctuation issues
+   - Vocabulary usage
+   - Sentence structure
 
-📝 Language Note:
-- Original: "[their incorrect phrase]"
-- Correct: "[corrected phrase]"
-- Why: [Brief explanation]
+2. RESPOND naturally to continue the conversation
 
-[Continue the conversation with a follow-up question or comment]
+3. PROVIDE CORRECTIONS in this format:
 
-Important:
+📝 Language Assessment:
+
+**Corrections Made:**
+[List each correction with explanation]
+
+**Your message rewritten:**
+[Provide the corrected version]
+
+**Key areas to practice:**
+[List 2-3 specific issues in order of importance]
+
+4. CONTINUE the conversation with a follow-up question
+
+Remember:
 - Be encouraging and supportive
-- Focus on major errors, not minor ones
-- Keep corrections brief and clear
-- Maintain a natural conversation flow
-- Track common error patterns for the session summary`
+- Use simple explanations
+- Focus on major errors first
+- Maintain natural conversation flow
+- Note: Corrections are only shown in learning mode, not during regular conversation`
 
   const ageAdjustments = {
     elementary: `
@@ -178,12 +191,21 @@ Age Group: Adult
 
 export async function POST(req: NextRequest) {
   try {
+    // Try to get authenticated user (optional for now)
+    let user = null
+    try {
+      user = await getAuthenticatedUser()
+    } catch (error) {
+      console.warn('Auth check failed, continuing without user:', error)
+    }
+    
     // Check if API key is configured
     const apiKey = process.env.OPENAI_API_KEY
-    if (!apiKey || apiKey === 'your_openai_api_key_here') {
-      console.error('OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file')
+    
+    if (!apiKey) {
+      console.error('OpenAI API key not configured.')
       return NextResponse.json(
-        { error: 'AI service not configured. Please add your OpenAI API key to the .env file.' },
+        { error: 'AI service not configured. Please set OPENAI_API_KEY environment variable.' },
         { status: 503 }
       )
     }
@@ -201,7 +223,7 @@ export async function POST(req: NextRequest) {
 
     // Parse request body
     const body: ChatRequest = await req.json()
-    const { message, context = [], ageGroup = 'adult', mode = 'conversation' } = body
+    const { message, context = [], ageGroup = 'adult', mode = 'conversation', sessionId } = body
 
     // Validate input
     const validation = validateInput(message)
@@ -228,26 +250,55 @@ export async function POST(req: NextRequest) {
       }
     ]
 
+    // Log the request for debugging
+    console.log('Chat API Request:', {
+      timestamp: new Date().toISOString(),
+      messageLength: message.length,
+      contextSize: limitedContext.length,
+      model: 'gpt-3.5-turbo', // Changed to more reliable model
+      ageGroup,
+      mode
+    })
+
     // Call OpenAI API
+    const requestBody = {
+      model: 'gpt-3.5-turbo', // Changed from gpt-4-turbo-preview for reliability
+      messages,
+      temperature: 0.8,
+      max_tokens: 400,
+      presence_penalty: 0.6,
+      frequency_penalty: 0.3
+    }
+    
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify({
-        model: 'gpt-4-turbo-preview',
-        messages,
-        temperature: 0.8,
-        max_tokens: 400,
-        presence_penalty: 0.6,
-        frequency_penalty: 0.3
-      })
+      body: JSON.stringify(requestBody)
     })
 
     if (!response.ok) {
-      console.error('OpenAI API error:', response.status)
-      throw new Error('AI service error')
+      const errorText = await response.text()
+      console.error('OpenAI API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      })
+      
+      // Parse error if possible
+      let errorMessage = 'AI service error'
+      try {
+        const errorData = JSON.parse(errorText)
+        errorMessage = errorData.error?.message || errorMessage
+      } catch (e) {
+        // If not JSON, use the text
+        errorMessage = errorText || errorMessage
+      }
+      
+      throw new Error(errorMessage)
     }
 
     const data = await response.json()
@@ -263,15 +314,124 @@ export async function POST(req: NextRequest) {
       contextSize: limitedContext.length
     })
 
+    // Database operations are optional for now
+    let sessionIdToReturn = sessionId || crypto.randomUUID()
+    let assessmentData = null
+    
+    // Try to save to database if user is authenticated
+    if (user) {
+      try {
+        // Get or create session
+        let session
+        if (sessionId) {
+          // Verify session belongs to user
+          const sessions = await db.sessions.findByUserId(user.id, 50)
+          session = sessions.find(s => s.id === sessionId && !s.end_time)
+        }
+        
+        if (!session) {
+          // Create new session if none provided or not found
+          session = await db.sessions.create({
+            user_id: user.id,
+            mode: mode,
+            start_time: new Date().toISOString(),
+            user_talk_time: 0,
+            ai_talk_time: 0
+          })
+        }
+        
+        sessionIdToReturn = session.id
+        
+        // Save user message
+        const userMessage = await db.messages.create({
+          session_id: session.id,
+          role: 'user',
+          content: message,
+          timestamp: new Date().toISOString()
+        })
+        
+        // Save AI response
+        await db.messages.create({
+          session_id: session.id,
+          role: 'assistant',
+          content: reply,
+          timestamp: new Date().toISOString()
+        })
+        
+        // Parse and save assessment if in learning mode
+        if (mode === 'learning') {
+          const assessment = AssessmentService.parseAssessment(
+            reply,
+            message,
+            user.id,
+            session.id,
+            mode
+          )
+          
+          if (assessment) {
+            // Save assessment to database
+            const savedAssessment = await db.assessments.create({
+              session_id: session.id,
+              user_id: user.id,
+              message_id: userMessage.id,
+              original_text: assessment.originalText,
+              corrected_text: assessment.correctedText,
+              corrections: assessment.corrections,
+              areas_to_improve: assessment.areasToImprove,
+              assessment_notes: assessment.assessmentNotes
+            })
+            
+            assessmentData = {
+              correctedText: savedAssessment.corrected_text,
+              corrections: savedAssessment.corrections,
+              areasToImprove: savedAssessment.areas_to_improve
+            }
+          }
+        }
+      } catch (dbError) {
+        console.warn('Database operations failed, continuing without saving:', dbError)
+      }
+    }
+    
+    // Parse assessment for display even without database
+    if (!assessmentData && mode === 'learning') {
+      const assessment = AssessmentService.parseAssessment(
+        reply,
+        message,
+        'temp-user',
+        sessionIdToReturn,
+        mode
+      )
+      
+      if (assessment) {
+        assessmentData = {
+          correctedText: assessment.correctedText,
+          corrections: assessment.corrections,
+          areasToImprove: assessment.areasToImprove
+        }
+      }
+    }
+
     return NextResponse.json({
       reply,
-      conversationId: crypto.randomUUID() // For future session tracking
+      conversationId: sessionIdToReturn,
+      assessment: assessmentData
     })
 
   } catch (error) {
     console.error('Chat API error:', error)
+    
+    // In development, return more detailed errors
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
     return NextResponse.json(
-      { error: 'Something went wrong. Please try again.' },
+      { 
+        error: isDevelopment 
+          ? `API Error: ${errorMessage}` 
+          : 'Something went wrong. Please try again.',
+        details: isDevelopment ? errorMessage : undefined
+      },
       { status: 500 }
     )
   }

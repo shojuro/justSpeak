@@ -27,11 +27,12 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       }
 
       const recognition = new SpeechRecognition()
-      recognition.continuous = true
+      recognition.continuous = false
       recognition.interimResults = true
       recognition.lang = 'en-US'
 
       recognition.onstart = () => {
+        console.log('[SpeechRecognition] Started')
         setIsListening(true)
         setError(null)
       }
@@ -50,16 +51,19 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
         }
 
         if (finalTranscript) {
+          console.log('[SpeechRecognition] Final transcript:', finalTranscript.trim())
           setTranscript(finalTranscript.trim())
         }
       }
 
       recognition.onerror = (event: any) => {
+        console.error('[SpeechRecognition] Error:', event.error)
         setError(`Speech recognition error: ${event.error}`)
         setIsListening(false)
       }
 
       recognition.onend = () => {
+        console.log('[SpeechRecognition] Ended')
         setIsListening(false)
       }
 

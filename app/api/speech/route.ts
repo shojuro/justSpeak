@@ -25,7 +25,23 @@ export async function POST(req: NextRequest) {
     }
 
     // Parse request body
-    const body: SpeechRequest = await req.json()
+    let body: SpeechRequest
+    try {
+      const text = await req.text()
+      if (!text) {
+        return NextResponse.json(
+          { error: 'Empty request body' },
+          { status: 400 }
+        )
+      }
+      body = JSON.parse(text)
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError)
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      )
+    }
     const { text, voiceId = 'EXAVITQu4vr4xnSDxMaL' } = body
 
     // Validate input

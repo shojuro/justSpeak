@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  authId    String   @unique // Supabase auth.users id
+  email     String   @unique
+  name      String?
+  ageGroup  String   @default("adult")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions    Session[]
+  assessments Assessment[]
+  stats       UserStats?
+  
+  @@map("users")
+}
+
+model Session {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  startTime  DateTime  @default(now())
+  endTime    DateTime?
+  mode       String    @default("conversation") // conversation or learning
+  
+  // Talk time in seconds
+  userTalkTime Int     @default(0)
+  aiTalkTime   Int     @default(0)
+  
+  assessments Assessment[]
+  messages    Message[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("sessions")
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  role      String   // user or assistant
+  content   String   @db.Text
+  timestamp DateTime @default(now())
+  
+  // For user messages that get assessed
+  assessment Assessment?
+  
+  @@map("messages")
+}
+
+model Assessment {
+  id         String   @id @default(uuid())
+  sessionId  String
+  session    Session  @relation(fields: [sessionId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  messageId  String?  @unique
+  message    Message? @relation(fields: [messageId], references: [id])
+  
+  originalText   String @db.Text
+  correctedText  String @db.Text
+  
+  // Store corrections as JSON
+  corrections Json
+  
+  // Areas to improve (stored as array)
+  areasToImprove String[]
+  
+  // Overall assessment notes
+  assessmentNotes String? @db.Text
+  
+  timestamp DateTime @default(now())
+  
+  @@map("assessments")
+}
+
+model UserStats {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+  
+  // Talk time aggregates (in seconds)
+  dailyTalkTime   Int @default(0)
+  weeklyTalkTime  Int @default(0)
+  monthlyTalkTime Int @default(0)
+  totalTalkTime   Int @default(0)
+  
+  // Last updated timestamps for aggregates
+  lastDailyUpdate   DateTime @default(now())
+  lastWeeklyUpdate  DateTime @default(now())
+  lastMonthlyUpdate DateTime @default(now())
+  
+  // Common issues (stored as JSON)
+  commonIssues Json?
+  
+  // Progress tracking (stored as JSON)
+  improvementAreas Json?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("user_stats")
+}

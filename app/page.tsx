@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useAuth } from '@/components/AuthProvider'
 import WelcomeScreen from '@/components/WelcomeScreen'
 import ConversationScreen from '@/components/ConversationScreen'
 import SessionCompleteScreen from '@/components/SessionCompleteScreen'
@@ -13,6 +14,7 @@ export default function Home() {
     startTime: null as Date | null,
     talkTime: 0,
   })
+  const { user, loading } = useAuth()
 
   const handleStartConversation = () => {
     setSessionData({

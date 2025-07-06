@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useAuth } from '@/components/AuthProvider'
+import Link from 'next/link'
 
 interface WelcomeScreenProps {
   onStart: () => void
@@ -8,6 +10,7 @@ interface WelcomeScreenProps {
 
 export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
   const [mounted, setMounted] = useState(false)
+  const { user, signOut } = useAuth()
 
   useEffect(() => {
     setMounted(true)
@@ -19,6 +22,19 @@ export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
 
   return (
     <div className="h-full flex flex-col items-center justify-center p-6 bg-gradient-to-b from-deep-charcoal to-deep-charcoal-light">
+      {/* User info header */}
+      {user && (
+        <div className="absolute top-4 right-4 flex items-center gap-4">
+          <span className="text-white/60 text-sm">{user.email}</span>
+          <button
+            onClick={() => signOut()}
+            className="text-white/60 hover:text-white text-sm transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+      )}
+      
       <div className="max-w-md w-full text-center">
         <div className={`transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <h1 className="text-5xl font-bold mb-4">
@@ -36,6 +52,24 @@ export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
           >
             Start Talking
           </button>
+          
+          <div className="flex gap-3 justify-center mt-4">
+            {user ? (
+              <Link
+                href="/dashboard"
+                className="inline-block px-6 py-2 bg-white/10 text-white text-sm font-medium rounded-full hover:bg-white/20 transition-all duration-300"
+              >
+                View Dashboard
+              </Link>
+            ) : (
+              <Link
+                href="/auth"
+                className="inline-block px-6 py-2 bg-white/10 text-white text-sm font-medium rounded-full hover:bg-white/20 transition-all duration-300"
+              >
+                Sign In to Track Progress
+              </Link>
+            )}
+          </div>
           
           <div className="mt-8 animate-pulse">
             <svg className="w-24 h-24 mx-auto text-warm-coral/30" viewBox="0 0 100 100">
