@@ -197,9 +197,10 @@ export async function POST(req: NextRequest) {
   
   try {
     logger.info('Chat API request received')
+    console.log('Chat API called at:', new Date().toISOString())
     
     // Check if authentication is required
-    const requireAuth = process.env.REQUIRE_AUTH === 'true' || process.env.NODE_ENV === 'production'
+    const requireAuth = process.env.REQUIRE_AUTH === 'true'
     
     // Try to get authenticated user
     let user = null
@@ -236,8 +237,9 @@ export async function POST(req: NextRequest) {
     
     if (!apiKey) {
       logger.error('OpenAI API key not configured')
+      console.error('OpenAI API key missing in environment')
       return NextResponse.json(
-        { error: 'AI service not configured. Please set OPENAI_API_KEY environment variable.' },
+        { error: 'AI service not configured. Please check API configuration.' },
         { status: 503 }
       )
     }
@@ -500,6 +502,11 @@ export async function OPTIONS(req: NextRequest) {
     'https://justspeak.vercel.app',
     'https://justspeak.app', // Add your custom domain here
   ]
+  
+  // Also allow Vercel preview URLs
+  if (origin && (origin.includes('.vercel.app') || origin.includes('vercel.app'))) {
+    allowedOrigins.push(origin)
+  }
   
   // Check if origin is allowed
   const isAllowed = process.env.NODE_ENV === 'development' 

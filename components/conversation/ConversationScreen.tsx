@@ -202,7 +202,13 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       })
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Chat API error:', {
+          status: response.status,
+          error: errorData,
+          message: userMessage
+        })
+        throw new Error(errorData.error || `API error: ${response.status}`)
       }
 
       const data = await response.json()
@@ -222,10 +228,23 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       
     } catch (error) {
       logger.error('Error sending message', error as Error)
+      console.error('Chat error details:', error)
+      
+      let errorContent = ERROR_MESSAGES.API_ERROR
+      if (error instanceof Error) {
+        if (error.message.includes('API key')) {
+          errorContent = 'AI service not configured. Please check API keys.'
+        } else if (error.message.includes('rate limit')) {
+          errorContent = 'Too many requests. Please wait a moment and try again.'
+        } else if (error.message.includes('network')) {
+          errorContent = 'Network error. Please check your connection.'
+        }
+      }
+      
       const errorMessage: Message = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: ERROR_MESSAGES.API_ERROR,
+        content: errorContent,
         timestamp: new Date(),
       }
       setMessages(prev => [...prev, errorMessage])
