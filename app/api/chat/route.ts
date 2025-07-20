@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { AssessmentService } from '@/lib/assessment-service'
 import { getAuthenticatedUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/supabase-db'
@@ -43,8 +44,8 @@ function generateFingerprint(req: NextRequest): string {
   const fingerprint = `${ip}:${userAgent}:${acceptLanguage}:${acceptEncoding}`
   
   // Hash the fingerprint for consistency and privacy
-  const crypto = require('crypto')
-  return crypto.createHash('sha256').update(fingerprint).digest('hex')
+  const { createHash } = require('crypto')
+  return createHash('sha256').update(fingerprint).digest('hex')
 }
 
 // Check rate limit using Redis
@@ -268,7 +269,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Parse request body
-    const body: ChatRequest = await req.json()
+    let body: ChatRequest
+    try {
+      body = await req.json()
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError)
+      return NextResponse.json(
+        { error: 'Invalid request format' },
+        { status: 400 }
+      )
+    }
+    
     const { message, context = [], ageGroup = 'adult', mode = 'conversation', sessionId } = body
 
     // Validate and sanitize input
@@ -376,7 +387,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Database operations are optional for now
-    let sessionIdToReturn = sanitizedSessionId || crypto.randomUUID()
+    let sessionIdToReturn = sanitizedSessionId || randomUUID()
     let assessmentData = null
     
     // Try to save to database if user is authenticated
@@ -481,13 +492,31 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     logger.error('Chat API error', error as Error)
+    console.error('Chat API error details:', error)
+    
+    // Provide more specific error messages
+    let errorMessage = 'Something went wrong. Please try again.'
+    let statusCode = 500
+    
+    if (error instanceof Error) {
+      if (error.message.includes('OPENAI_API_KEY')) {
+        errorMessage = 'AI service not configured'
+        statusCode = 503
+      } else if (error.message.includes('rate limit')) {
+        errorMessage = 'Too many requests. Please wait a moment.'
+        statusCode = 429
+      } else if (error.message.includes('Invalid API key')) {
+        errorMessage = 'AI service authentication failed'
+        statusCode = 503
+      }
+    }
     
     // Never expose error details in production
     const isDevelopment = process.env.NODE_ENV === 'development'
     
     return NextResponse.json(
       { 
-        error: 'Something went wrong. Please try again.',
+        error: errorMessage,
         // Only include details in development
         ...(isDevelopment && {
           debug: {
@@ -496,7 +525,7 @@ export async function POST(req: NextRequest) {
           }
         })
       },
-      { status: 500 }
+      { status: statusCode }
     )
   }
 }
