@@ -76,12 +76,16 @@ export function useVoiceRecognition({
           setIsListening(false)
           
           // Handle common errors
-          if (errorMessage === 'not-allowed') {
-            setError('Microphone permission denied. Please allow microphone access.')
-          } else if (errorMessage === 'no-speech') {
-            setError('No speech detected. Please try again.')
-          } else if (errorMessage === 'network') {
+          if (event.error === 'not-allowed' || event.error === 'permission-denied') {
+            setError('Microphone permission denied. Please allow microphone access and refresh the page.')
+          } else if (event.error === 'no-speech') {
+            setError('No speech detected. Please try speaking again.')
+          } else if (event.error === 'network') {
             setError('Network error. Please check your connection.')
+          } else if (event.error === 'aborted') {
+            setError('Speech recognition stopped. Click the microphone to start again.')
+          } else {
+            setError(`Speech recognition error: ${event.error}`)
           }
         }
 
@@ -156,6 +160,11 @@ export function useVoiceRecognition({
 
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('Transcription API error:', {
+          status: response.status,
+          error: errorData,
+          provider: provider
+        })
         throw new Error(errorData.error || 'Failed to transcribe audio')
       }
 
@@ -173,18 +182,38 @@ export function useVoiceRecognition({
       }
     } catch (err) {
       const error = err as Error
+      console.error('Transcription error:', {
+        provider: provider,
+        error: error.message,
+        stack: error.stack
+      })
       setError(`Failed to transcribe audio: ${error.message}`)
+      
+      // If using OpenAI and it fails, suggest using browser
+      if (provider === 'openai') {
+        setError(`OpenAI transcription failed. Try switching to browser voice recognition in settings.`)
+      }
     }
   }, [provider, language, onTranscript, onFinalTranscript])
 
   // Start listening
   const startListening = useCallback(async () => {
+    // Check microphone permissions first
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch (err) {
+      setError('Microphone access denied. Please allow microphone access in your browser settings.')
+      console.error('Microphone permission error:', err)
+      return
+    }
+    
     if (provider === 'browser') {
       if (!recognitionRef.current) {
         // Try to initialize again
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
         if (!SpeechRecognition) {
-          setError('Speech recognition not available in this browser')
+          setError('Speech recognition not available. Please use Chrome, Edge, or Safari on desktop/mobile.')
+          console.error('Browser Speech Recognition not available')
           return
         }
         

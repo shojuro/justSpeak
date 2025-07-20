@@ -89,7 +89,8 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       const savedSTT = getSavedProvider('stt') as 'browser' | 'openai' | 'google'
       const savedTTS = getSavedProvider('tts') as 'browser' | 'openai' | 'elevenlabs'
       
-      const bestSTT = savedSTT || getBestProvider('stt', status) as 'browser' | 'openai' | 'google' || 'browser'
+      // For MVP, default to browser for STT to avoid API issues
+      const bestSTT = savedSTT || 'browser'
       const bestTTS = savedTTS || getBestProvider('tts', status) as 'browser' | 'openai' | 'elevenlabs' || 'browser'
       
       setVoiceProvider(bestSTT)
