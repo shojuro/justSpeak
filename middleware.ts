@@ -30,6 +30,20 @@ const securityHeaders = {
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next()
   
+  // For MVP, redirect all auth pages to practice
+  const authPaths = [
+    '/auth',
+    '/settings',
+    '/onboarding',
+    '/dashboard'
+  ]
+  
+  const pathname = req.nextUrl.pathname
+  
+  if (authPaths.some(path => pathname.startsWith(path))) {
+    return NextResponse.redirect(new URL('/practice', req.url))
+  }
+  
   // Apply CORS for API routes
   if (req.nextUrl.pathname.startsWith('/api/')) {
     const origin = req.headers.get('origin') || ''
