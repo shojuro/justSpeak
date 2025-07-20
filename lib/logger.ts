@@ -112,7 +112,7 @@ class Logger {
       }
     } catch (error) {
       // Silent fail - don't throw errors from logging
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV !== 'production') {
         console.error('Failed to send logs to remote:', error)
       }
     }

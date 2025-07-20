@@ -370,11 +370,11 @@ export async function POST(req: NextRequest) {
     if (user) {
       try {
         // Get or create session
-        let session
+        let session = null
         if (sanitizedSessionId) {
           // Verify session belongs to user
           const sessions = await db.sessions.findByUserId(user.id, 50)
-          session = sessions.find(s => s.id === sanitizedSessionId && !s.end_time)
+          session = sessions.find(s => s.id === sanitizedSessionId && !s.end_time) || null
         }
         
         if (!session) {

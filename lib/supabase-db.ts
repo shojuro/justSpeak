@@ -89,7 +89,7 @@ export const db = {
         .single()
       
       if (error) throw error
-      return data as User
+      return data as unknown as User
     },
     
     async create(user: Partial<User>) {
@@ -100,7 +100,7 @@ export const db = {
         .single()
       
       if (error) throw error
-      return data as User
+      return data as unknown as User
     },
     
     async update(id: string, updates: Partial<User>) {
@@ -112,7 +112,7 @@ export const db = {
         .single()
       
       if (error) throw error
-      return data as User
+      return data as unknown as User
     }
   },
   
@@ -126,7 +126,7 @@ export const db = {
         .single()
       
       if (error) throw error
-      return data as Session
+      return data as unknown as Session
     },
     
     async update(id: string, updates: Partial<Session>) {
@@ -138,7 +138,7 @@ export const db = {
         .single()
       
       if (error) throw error
-      return data as Session
+      return data as unknown as Session
     },
     
     async findByUserId(userId: string, limit = 10) {
@@ -150,7 +150,7 @@ export const db = {
         .limit(limit)
       
       if (error) throw error
-      return data as Session[]
+      return data as unknown as unknown as Session[]
     }
   },
   
@@ -164,7 +164,7 @@ export const db = {
         .single()
       
       if (error) throw error
-      return data as Message
+      return data as unknown as Message
     },
     
     async findBySessionId(sessionId: string) {
@@ -175,7 +175,7 @@ export const db = {
         .order('timestamp', { ascending: true })
       
       if (error) throw error
-      return data as Message[]
+      return data as unknown as unknown as Message[]
     }
   },
   
@@ -189,7 +189,7 @@ export const db = {
         .single()
       
       if (error) throw error
-      return data as Assessment
+      return data as unknown as Assessment
     },
     
     async findBySessionId(sessionId: string) {
@@ -200,7 +200,7 @@ export const db = {
         .order('timestamp', { ascending: true })
       
       if (error) throw error
-      return data as Assessment[]
+      return data as unknown as unknown as Assessment[]
     }
   },
   
@@ -214,7 +214,7 @@ export const db = {
         .single()
       
       if (error && error.code !== 'PGRST116') throw error // PGRST116 = not found
-      return data as UserStats | null
+      return data as unknown as unknown as UserStats | null
     },
     
     async create(stats: Partial<UserStats>) {
@@ -225,7 +225,7 @@ export const db = {
         .single()
       
       if (error) throw error
-      return data as UserStats
+      return data as unknown as unknown as UserStats
     },
     
     async update(userId: string, updates: Partial<UserStats>) {
@@ -237,7 +237,7 @@ export const db = {
         .single()
       
       if (error) throw error
-      return data as UserStats
+      return data as unknown as unknown as UserStats
     },
     
     async incrementTalkTime(userId: string, seconds: number) {

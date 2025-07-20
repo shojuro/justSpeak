@@ -90,7 +90,7 @@ export const transactions = {
           .single()
         
         if (error) throw error
-        sessionId = data.id
+        sessionId = data?.id as string
         return data
       },
       // Rollback: delete the session
@@ -117,7 +117,7 @@ export const transactions = {
             .single()
           
           if (error) throw error
-          messageIds.push(data.id)
+          messageIds.push(data?.id as string)
           return data
         },
         // Rollback: delete the message
@@ -181,10 +181,10 @@ export const transactions = {
           const { data, error } = await supabaseDb
             .from('user_stats')
             .update({
-              total_talk_time: currentStats.total_talk_time + talkTimeSeconds,
-              daily_talk_time: currentStats.daily_talk_time + talkTimeSeconds,
-              weekly_talk_time: currentStats.weekly_talk_time + talkTimeSeconds,
-              monthly_talk_time: currentStats.monthly_talk_time + talkTimeSeconds,
+              total_talk_time: (currentStats.total_talk_time as number) + talkTimeSeconds,
+              daily_talk_time: (currentStats.daily_talk_time as number) + talkTimeSeconds,
+              weekly_talk_time: (currentStats.weekly_talk_time as number) + talkTimeSeconds,
+              monthly_talk_time: (currentStats.monthly_talk_time as number) + talkTimeSeconds,
               updated_at: new Date().toISOString(),
             })
             .eq('user_id', userId)
@@ -242,7 +242,7 @@ export const transactions = {
           .single()
         
         if (error) throw error
-        messageId = data.id
+        messageId = data?.id as string
         return data
       },
       // Rollback: delete the message

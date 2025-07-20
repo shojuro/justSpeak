@@ -167,35 +167,7 @@ export default function ProviderSelector({
               ))}
             </div>
             
-            {/* ElevenLabs Voice Selection */}
-            {synthProvider === 'elevenlabs' && apiStatus.elevenLabs.configured && (
-              <div className="mt-4 p-4 bg-deep-charcoal rounded-lg">
-                <h4 className="font-medium mb-3">ElevenLabs Voice</h4>
-                <select
-                  value={selectedElevenLabsVoice}
-                  onChange={(e) => {
-                    setSelectedElevenLabsVoice(e.target.value)
-                    onElevenLabsVoiceChange?.(e.target.value)
-                  }}
-                  className="w-full p-2 bg-jet border border-warm-coral/30 rounded-lg text-warm-coral-light"
-                >
-                  <optgroup label="Default Voices">
-                    {DEFAULT_ELEVENLABS_VOICES.filter(v => v.category !== 'voice-library').map(voice => (
-                      <option key={voice.voiceId} value={voice.voiceId}>
-                        {voice.name} - {voice.description}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Voice Library">
-                    {DEFAULT_ELEVENLABS_VOICES.filter(v => v.category === 'voice-library').map(voice => (
-                      <option key={voice.voiceId} value={voice.voiceId}>
-                        {voice.name} - {voice.description}
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-              </div>
-            )}
+            {/* ElevenLabs Voice Selection - Removed for now */}
           </div>
 
           {/* API Status Summary */}

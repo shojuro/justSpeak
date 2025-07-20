@@ -324,9 +324,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         <ProviderSelector
           voiceProvider={voiceProvider}
           synthProvider={synthProvider}
-          elevenLabsVoiceId={elevenLabsVoiceId}
           onProviderChange={handleProviderChange}
-          onElevenLabsVoiceChange={setElevenLabsVoiceId}
           onClose={() => setShowProviderSettings(false)}
         />
       )}
