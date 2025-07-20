@@ -89,9 +89,9 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       const savedSTT = getSavedProvider('stt') as 'browser' | 'openai' | 'google'
       const savedTTS = getSavedProvider('tts') as 'browser' | 'openai' | 'elevenlabs'
       
-      // For MVP, default to browser for STT to avoid API issues
+      // For MVP, default to browser for both STT and TTS to avoid API issues
       const bestSTT = savedSTT || 'browser'
-      const bestTTS = savedTTS || getBestProvider('tts', status) as 'browser' | 'openai' | 'elevenlabs' || 'browser'
+      const bestTTS = savedTTS || 'browser'
       
       setVoiceProvider(bestSTT)
       setSynthProvider(bestTTS)
@@ -224,7 +224,12 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       setMessages(prev => [...prev, aiMessage])
       
       // Speak the response
-      await speak(data.reply || data.response)
+      try {
+        await speak(data.reply || data.response)
+      } catch (speechError) {
+        console.error('Failed to speak AI response:', speechError)
+        // Don't throw - the text response is still shown
+      }
       
     } catch (error) {
       logger.error('Error sending message', error as Error)
@@ -248,7 +253,12 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         timestamp: new Date(),
       }
       setMessages(prev => [...prev, errorMessage])
-      await speak(ERROR_MESSAGES.API_ERROR)
+      // Try to speak the error, but don't fail if speech fails
+      try {
+        await speak(errorContent)
+      } catch (speechError) {
+        console.error('Failed to speak error message:', speechError)
+      }
     } finally {
       setIsAIThinking(false)
       processingRef.current = false

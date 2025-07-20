@@ -1,14 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { logger } from '@/lib/logger'
 
-// Validation schema
-const synthesizeSchema = z.object({
-  text: z.string().min(1).max(5000),
-  voice: z.string().optional().default('nova'),
-  speed: z.number().min(0.5).max(2).optional().default(1),
-  provider: z.enum(['openai', 'elevenlabs', 'browser']).optional().default('browser')
-})
+// Manual validation
+function validateInput(body: any) {
+  const errors: string[] = []
+  
+  if (!body.text || typeof body.text !== 'string') {
+    errors.push('text is required and must be a string')
+  } else if (body.text.length < 1 || body.text.length > 5000) {
+    errors.push('text must be between 1 and 5000 characters')
+  }
+  
+  const voice = body.voice || 'nova'
+  const speed = body.speed !== undefined ? Number(body.speed) : 1
+  const provider = body.provider || 'browser'
+  
+  if (speed < 0.5 || speed > 2 || isNaN(speed)) {
+    errors.push('speed must be between 0.5 and 2')
+  }
+  
+  if (!['openai', 'elevenlabs', 'browser'].includes(provider)) {
+    errors.push('provider must be one of: openai, elevenlabs, browser')
+  }
+  
+  return {
+    success: errors.length === 0,
+    data: errors.length === 0 ? { text: body.text, voice, speed, provider } : null,
+    errors
+  }
+}
 
 // ElevenLabs voices mapping
 const elevenLabsVoices = {
@@ -25,10 +45,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     
     // Validate input
-    const result = synthesizeSchema.safeParse(body)
+    const result = validateInput(body)
     if (!result.success) {
       return NextResponse.json(
-        { error: 'Invalid request', details: result.error.flatten() },
+        { error: 'Invalid request', details: result.errors },
         { status: 400 }
       )
     }
