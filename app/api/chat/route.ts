@@ -232,8 +232,10 @@ export async function POST(req: NextRequest) {
     // Log API key status without exposing sensitive data
     logger.debug('API Key check', {
       exists: !!apiKey,
-      configured: !!apiKey && apiKey.length > 0
+      configured: !!apiKey && apiKey.length > 0,
+      length: apiKey ? apiKey.length : 0
     })
+    console.log('OpenAI API Key configured:', !!apiKey, 'Length:', apiKey ? apiKey.length : 0)
     
     if (!apiKey) {
       logger.error('OpenAI API key not configured')
@@ -323,6 +325,8 @@ export async function POST(req: NextRequest) {
       model: requestBody.model
     })
     
+    console.log('Calling OpenAI API with model:', requestBody.model)
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -332,8 +336,15 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(requestBody)
     })
 
+    console.log('OpenAI API response status:', response.status)
+
     if (!response.ok) {
       const errorText = await response.text()
+      console.error('OpenAI API error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      })
       logger.error('OpenAI API error', new Error(errorText), {
         status: response.status,
         statusText: response.statusText
