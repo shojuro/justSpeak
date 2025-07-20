@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/supabase-db'
+import { logger } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
   try {
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
       assessmentCount: assessments.length
     })
   } catch (error) {
-    console.error('End session error:', error)
+    logger.error('End session error', error as Error)
     return NextResponse.json(
       { error: 'Failed to end session' },
       { status: 500 }

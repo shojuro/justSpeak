@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TalkTime - Phase 4 Authentication Test</title>
+    <style>
+        :root {
+            --deep-charcoal: #1a1a1a;
+            --jet: #2d2d2d;
+            --warm-coral: #ff8e58;
+            --warm-coral-light: #ffb088;
+            --warm-coral-dark: #ff6e32;
+            --white: #ffffff;
+            --success: #4CAF50;
+            --error: #f44336;
+            --warning: #ff9800;
+            --info: #2196F3;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--deep-charcoal);
+            color: var(--white);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1 {
+            color: var(--warm-coral);
+            margin-bottom: 1rem;
+            font-size: 2.5rem;
+        }
+
+        h2 {
+            color: var(--warm-coral-light);
+            margin: 2rem 0 1rem;
+            font-size: 1.8rem;
+        }
+
+        .test-section {
+            background: var(--jet);
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            color: var(--warm-coral);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 142, 88, 0.3);
+            border-radius: 8px;
+            color: var(--white);
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--warm-coral);
+            box-shadow: 0 0 0 3px rgba(255, 142, 88, 0.2);
+        }
+
+        /* Button Styles */
+        .button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 9999px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .button-primary {
+            background: var(--warm-coral);
+            color: white;
+        }
+
+        .button-primary:hover {
+            background: var(--warm-coral-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 142, 88, 0.3);
+        }
+
+        .button-secondary {
+            background: transparent;
+            color: var(--warm-coral);
+            border: 2px solid var(--warm-coral);
+        }
+
+        .button-secondary:hover {
+            background: var(--warm-coral);
+            color: white;
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Social Login Buttons */
+        .social-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .social-button {
+            padding: 0.75rem;
+            border: 2px solid rgba(255, 142, 88, 0.3);
+            border-radius: 8px;
+            background: transparent;
+            color: var(--warm-coral);
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .social-button:hover {
+            border-color: var(--warm-coral);
+            background: rgba(255, 142, 88, 0.1);
+        }
+
+        /* Status Messages */
+        .status {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status-success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .status-error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid var(--error);
+            color: var(--error);
+        }
+
+        .status-info {
+            background: rgba(33, 150, 243, 0.2);
+            border: 1px solid var(--info);
+            color: var(--info);
+        }
+
+        /* User Info Display */
+        .user-info {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .user-info h3 {
+            color: var(--warm-coral);
+            margin-bottom: 1rem;
+        }
+
+        .user-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 142, 88, 0.1);
+        }
+
+        .user-info-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid rgba(255, 142, 88, 0.2);
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            color: var(--warm-coral-light);
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab:hover {
+            color: var(--warm-coral);
+        }
+
+        .tab.active {
+            color: var(--warm-coral);
+            border-bottom-color: var(--warm-coral);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Progress Steps */
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin: 2rem 0;
+        }
+
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+
+        .step::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            right: -50%;
+            height: 2px;
+            background: rgba(255, 142, 88, 0.3);
+            z-index: -1;
+        }
+
+        .step:last-child::before {
+            display: none;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            background: var(--jet);
+            border: 2px solid rgba(255, 142, 88, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.5rem;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .step.completed .step-circle {
+            background: var(--warm-coral);
+            border-color: var(--warm-coral);
+            color: white;
+        }
+
+        .step.active .step-circle {
+            border-color: var(--warm-coral);
+            color: var(--warm-coral);
+        }
+
+        /* Results Section */
+        .results {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 2rem;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 142, 88, 0.1);
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-pass {
+            color: var(--success);
+        }
+
+        .status-fail {
+            color: var(--error);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TalkTime - Phase 4: Authentication & User Management Testing</h1>
+        <p>This page tests all authentication and user management features implemented in Phase 4.</p>
+
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('signup')">Sign Up</button>
+            <button class="tab" onclick="switchTab('login')">Login</button>
+            <button class="tab" onclick="switchTab('reset')">Password Reset</button>
+            <button class="tab" onclick="switchTab('profile')">Profile</button>
+            <button class="tab" onclick="switchTab('onboarding')">Onboarding</button>
+            <button class="tab" onclick="switchTab('settings')">Settings</button>
+        </div>
+
+        <!-- Sign Up Tab -->
+        <div id="signup-tab" class="tab-content active">
+            <section class="test-section">
+                <h2>1. User Registration</h2>
+                
+                <form id="signup-form">
+                    <div class="form-group">
+                        <label for="signup-name">Full Name</label>
+                        <input type="text" id="signup-name" placeholder="John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-email">Email</label>
+                        <input type="email" id="signup-email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-age">Age Group</label>
+                        <select id="signup-age" required>
+                            <option value="">Select age group</option>
+                            <option value="child">Child (Under 13)</option>
+                            <option value="teen">Teen (13-17)</option>
+                            <option value="adult">Adult (18+)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-password">Password</label>
+                        <input type="password" id="signup-password" placeholder="Min 8 chars, uppercase, lowercase, number" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-confirm">Confirm Password</label>
+                        <input type="password" id="signup-confirm" placeholder="Confirm your password" required>
+                    </div>
+                    
+                    <button type="submit" class="button button-primary">Create Account</button>
+                </form>
+
+                <h3 style="margin-top: 2rem;">Social Sign Up</h3>
+                <div class="social-buttons">
+                    <button class="social-button" onclick="socialAuth('google')">
+                        <svg width="20" height="20" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        </svg>
+                        Google
+                    </button>
+                    <button class="social-button" onclick="socialAuth('github')">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                        GitHub
+                    </button>
+                    <button class="social-button" onclick="socialAuth('facebook')">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        Facebook
+                    </button>
+                </div>
+
+                <div id="signup-status" class="status"></div>
+            </section>
+        </div>
+
+        <!-- Login Tab -->
+        <div id="login-tab" class="tab-content">
+            <section class="test-section">
+                <h2>2. User Login</h2>
+                
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" placeholder="Your password" required>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="remember-me"> Remember me
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="button button-primary">Sign In</button>
+                    <button type="button" class="button button-secondary" onclick="switchTab('reset')">
+                        Forgot Password?
+                    </button>
+                </form>
+
+                <div id="login-status" class="status"></div>
+
+                <!-- User Info Display -->
+                <div id="user-info" class="user-info" style="display: none;">
+                    <h3>Current User</h3>
+                    <div class="user-info-item">
+                        <span>Email:</span>
+                        <span id="user-email">-</span>
+                    </div>
+                    <div class="user-info-item">
+                        <span>Name:</span>
+                        <span id="user-name">-</span>
+                    </div>
+                    <div class="user-info-item">
+                        <span>Session ID:</span>
+                        <span id="user-session">-</span>
+                    </div>
+                    <div class="user-info-item">
+                        <span>Role:</span>
+                        <span id="user-role">-</span>
+                    </div>
+                    <button class="button button-secondary" onclick="signOut()">Sign Out</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Password Reset Tab -->
+        <div id="reset-tab" class="tab-content">
+            <section class="test-section">
+                <h2>3. Password Reset Flow</h2>
+                
+                <div id="reset-request">
+                    <h3>Request Password Reset</h3>
+                    <form id="reset-form">
+                        <div class="form-group">
+                            <label for="reset-email">Email Address</label>
+                            <input type="email" id="reset-email" placeholder="you@example.com" required>
+                        </div>
+                        <button type="submit" class="button button-primary">Send Reset Instructions</button>
+                    </form>
+                </div>
+
+                <div id="reset-confirm" style="display: none;">
+                    <h3>Set New Password</h3>
+                    <form id="new-password-form">
+                        <div class="form-group">
+                            <label for="new-password">New Password</label>
+                            <input type="password" id="new-password" placeholder="Enter new password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm-new-password">Confirm New Password</label>
+                            <input type="password" id="confirm-new-password" placeholder="Confirm new password" required>
+                        </div>
+                        <button type="submit" class="button button-primary">Reset Password</button>
+                    </form>
+                </div>
+
+                <div id="reset-status" class="status"></div>
+            </section>
+        </div>
+
+        <!-- Profile Tab -->
+        <div id="profile-tab" class="tab-content">
+            <section class="test-section">
+                <h2>4. User Profile Management</h2>
+                
+                <form id="profile-form">
+                    <div class="form-group">
+                        <label for="profile-name">Full Name</label>
+                        <input type="text" id="profile-name" placeholder="Your name">
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-email">Email</label>
+                        <input type="email" id="profile-email" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-age">Age Group</label>
+                        <select id="profile-age">
+                            <option value="child">Child (Under 13)</option>
+                            <option value="teen">Teen (13-17)</option>
+                            <option value="adult">Adult (18+)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-language">Preferred Language</label>
+                        <select id="profile-language">
+                            <option value="en-US">English (US)</option>
+                            <option value="en-GB">English (UK)</option>
+                            <option value="en-AU">English (Australia)</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="button button-primary">Save Profile</button>
+                </form>
+
+                <div id="profile-status" class="status"></div>
+            </section>
+        </div>
+
+        <!-- Onboarding Tab -->
+        <div id="onboarding-tab" class="tab-content">
+            <section class="test-section">
+                <h2>5. User Onboarding Flow</h2>
+                
+                <div class="progress-steps">
+                    <div class="step completed" id="step-1">
+                        <div class="step-circle">1</div>
+                        <span>Welcome</span>
+                    </div>
+                    <div class="step active" id="step-2">
+                        <div class="step-circle">2</div>
+                        <span>Goals</span>
+                    </div>
+                    <div class="step" id="step-3">
+                        <div class="step-circle">3</div>
+                        <span>Level</span>
+                    </div>
+                    <div class="step" id="step-4">
+                        <div class="step-circle">4</div>
+                        <span>Preferences</span>
+                    </div>
+                </div>
+
+                <div id="onboarding-content">
+                    <h3>Set Your Learning Goals</h3>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                        <label class="social-button">
+                            <input type="checkbox" value="conversation"> 💬 Conversation Skills
+                        </label>
+                        <label class="social-button">
+                            <input type="checkbox" value="business"> 💼 Business English
+                        </label>
+                        <label class="social-button">
+                            <input type="checkbox" value="travel"> ✈️ Travel English
+                        </label>
+                        <label class="social-button">
+                            <input type="checkbox" value="academic"> 🎓 Academic English
+                        </label>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-top: 2rem;">
+                    <button class="button button-secondary" onclick="previousStep()">Back</button>
+                    <button class="button button-primary" onclick="nextStep()">Next</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings-tab" class="tab-content">
+            <section class="test-section">
+                <h2>6. Account Settings</h2>
+                
+                <h3>Privacy Settings</h3>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="share-progress"> Share progress with friends
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="anonymous-data" checked> Share anonymous usage data
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="public-profile"> Make profile public
+                    </label>
+                </div>
+
+                <h3 style="margin-top: 2rem;">Notification Settings</h3>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="email-reminders" checked> Daily practice reminders
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="achievement-alerts" checked> Achievement notifications
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="weekly-reports" checked> Weekly progress reports
+                    </label>
+                </div>
+
+                <button class="button button-primary" onclick="saveSettings()">Save Settings</button>
+                
+                <h3 style="margin-top: 2rem; color: var(--error);">Danger Zone</h3>
+                <button class="button button-secondary" style="border-color: var(--error); color: var(--error);">
+                    Delete Account
+                </button>
+
+                <div id="settings-status" class="status"></div>
+            </section>
+        </div>
+
+        <!-- Test Results -->
+        <section class="test-section">
+            <h2>Test Results</h2>
+            <div class="results">
+                <div class="result-item">
+                    <span>User Registration</span>
+                    <span id="signup-result">Pending</span>
+                </div>
+                <div class="result-item">
+                    <span>Email Validation</span>
+                    <span id="email-result">Pending</span>
+                </div>
+                <div class="result-item">
+                    <span>Password Strength</span>
+                    <span id="password-result">Pending</span>
+                </div>
+                <div class="result-item">
+                    <span>Social Login</span>
+                    <span id="social-result">Pending</span>
+                </div>
+                <div class="result-item">
+                    <span>Session Management</span>
+                    <span id="session-result">Pending</span>
+                </div>
+                <div class="result-item">
+                    <span>Profile Updates</span>
+                    <span id="profile-update-result">Pending</span>
+                </div>
+                <div class="result-item">
+                    <span>Password Reset</span>
+                    <span id="reset-result">Pending</span>
+                </div>
+                <div class="result-item">
+                    <span>Onboarding Flow</span>
+                    <span id="onboarding-result">Pending</span>
+                </div>
+                <div class="result-item">
+                    <span>Settings Management</span>
+                    <span id="settings-result">Pending</span>
+                </div>
+                <div class="result-item">
+                    <span>Activity Logging</span>
+                    <span id="activity-result">Pending</span>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Mock user data
+        let currentUser = null;
+        let sessionId = null;
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Sign Up Form
+        document.getElementById('signup-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('signup-confirm').value;
+            const ageGroup = document.getElementById('signup-age').value;
+            
+            // Validate email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showStatus('signup-status', 'Invalid email format', 'error');
+                updateResult('email-result', false);
+                return;
+            }
+            updateResult('email-result', true);
+            
+            // Validate password
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+            if (!passwordRegex.test(password)) {
+                showStatus('signup-status', 'Password must be at least 8 characters with uppercase, lowercase, and number', 'error');
+                updateResult('password-result', false);
+                return;
+            }
+            updateResult('password-result', true);
+            
+            // Check password match
+            if (password !== confirmPassword) {
+                showStatus('signup-status', 'Passwords do not match', 'error');
+                return;
+            }
+            
+            // Simulate successful signup
+            currentUser = { name, email, ageGroup, role: 'student' };
+            sessionId = generateSessionId();
+            
+            showStatus('signup-status', 'Account created successfully! Check your email for verification.', 'success');
+            updateResult('signup-result', true);
+            
+            // Simulate activity logging
+            logActivity('user_registered', { email, ageGroup });
+        });
+
+        // Login Form
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const rememberMe = document.getElementById('remember-me').checked;
+            
+            // Simulate login
+            if (email && password.length >= 6) {
+                currentUser = { 
+                    name: 'John Doe', 
+                    email, 
+                    ageGroup: 'adult',
+                    role: 'student' 
+                };
+                sessionId = generateSessionId();
+                
+                // Update UI
+                document.getElementById('user-info').style.display = 'block';
+                document.getElementById('user-email').textContent = email;
+                document.getElementById('user-name').textContent = currentUser.name;
+                document.getElementById('user-session').textContent = sessionId;
+                document.getElementById('user-role').textContent = currentUser.role;
+                
+                showStatus('login-status', 'Login successful!', 'success');
+                updateResult('session-result', true);
+                
+                // Simulate session persistence
+                if (rememberMe) {
+                    localStorage.setItem('sessionId', sessionId);
+                }
+                
+                logActivity('user_logged_in', { email, rememberMe });
+            } else {
+                showStatus('login-status', 'Invalid email or password', 'error');
+            }
+        });
+
+        // Password Reset
+        document.getElementById('reset-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('reset-email').value;
+            
+            showStatus('reset-status', 'Password reset email sent! Check your inbox.', 'info');
+            document.getElementById('reset-request').style.display = 'none';
+            document.getElementById('reset-confirm').style.display = 'block';
+            
+            logActivity('password_reset_requested', { email });
+        });
+
+        document.getElementById('new-password-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-new-password').value;
+            
+            if (newPassword === confirmPassword && newPassword.length >= 8) {
+                showStatus('reset-status', 'Password reset successfully!', 'success');
+                updateResult('reset-result', true);
+                
+                // Reset form
+                setTimeout(() => {
+                    document.getElementById('reset-request').style.display = 'block';
+                    document.getElementById('reset-confirm').style.display = 'none';
+                }, 2000);
+                
+                logActivity('password_reset_completed', {});
+            } else {
+                showStatus('reset-status', 'Passwords do not match or are too short', 'error');
+            }
+        });
+
+        // Profile Management
+        document.getElementById('profile-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            if (!currentUser) {
+                showStatus('profile-status', 'Please login first', 'error');
+                return;
+            }
+            
+            const name = document.getElementById('profile-name').value;
+            const ageGroup = document.getElementById('profile-age').value;
+            const language = document.getElementById('profile-language').value;
+            
+            currentUser.name = name;
+            currentUser.ageGroup = ageGroup;
+            currentUser.preferredLanguage = language;
+            
+            showStatus('profile-status', 'Profile updated successfully!', 'success');
+            updateResult('profile-update-result', true);
+            
+            logActivity('profile_updated', { fields: ['name', 'ageGroup', 'language'] });
+        });
+
+        // Social Login
+        function socialAuth(provider) {
+            showStatus('signup-status', `Redirecting to ${provider} login...`, 'info');
+            updateResult('social-result', true);
+            
+            // Simulate OAuth redirect
+            setTimeout(() => {
+                currentUser = {
+                    name: `${provider} User`,
+                    email: `user@${provider}.com`,
+                    ageGroup: 'adult',
+                    role: 'student'
+                };
+                sessionId = generateSessionId();
+                
+                showStatus('signup-status', `Successfully logged in with ${provider}!`, 'success');
+                logActivity('social_login', { provider });
+            }, 1500);
+        }
+
+        // Sign Out
+        function signOut() {
+            currentUser = null;
+            sessionId = null;
+            localStorage.removeItem('sessionId');
+            
+            document.getElementById('user-info').style.display = 'none';
+            showStatus('login-status', 'Signed out successfully', 'info');
+            
+            logActivity('user_signed_out', {});
+        }
+
+        // Onboarding Flow
+        let currentStep = 2;
+        
+        function nextStep() {
+            if (currentStep < 4) {
+                document.getElementById(`step-${currentStep}`).classList.remove('active');
+                document.getElementById(`step-${currentStep}`).classList.add('completed');
+                currentStep++;
+                document.getElementById(`step-${currentStep}`).classList.add('active');
+                
+                if (currentStep === 4) {
+                    updateResult('onboarding-result', true);
+                    logActivity('onboarding_completed', { stepsCompleted: 4 });
+                }
+            }
+        }
+        
+        function previousStep() {
+            if (currentStep > 1) {
+                document.getElementById(`step-${currentStep}`).classList.remove('active');
+                currentStep--;
+                document.getElementById(`step-${currentStep}`).classList.remove('completed');
+                document.getElementById(`step-${currentStep}`).classList.add('active');
+            }
+        }
+
+        // Settings Management
+        function saveSettings() {
+            const settings = {
+                shareProgress: document.getElementById('share-progress').checked,
+                anonymousData: document.getElementById('anonymous-data').checked,
+                publicProfile: document.getElementById('public-profile').checked,
+                emailReminders: document.getElementById('email-reminders').checked,
+                achievementAlerts: document.getElementById('achievement-alerts').checked,
+                weeklyReports: document.getElementById('weekly-reports').checked
+            };
+            
+            showStatus('settings-status', 'Settings saved successfully!', 'success');
+            updateResult('settings-result', true);
+            
+            logActivity('settings_updated', settings);
+        }
+
+        // Helper Functions
+        function generateSessionId() {
+            return 'sess_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function showStatus(elementId, message, type) {
+            const statusElement = document.getElementById(elementId);
+            statusElement.textContent = message;
+            statusElement.className = `status status-${type} show`;
+            
+            setTimeout(() => {
+                statusElement.classList.remove('show');
+            }, 5000);
+        }
+
+        function updateResult(elementId, success) {
+            const element = document.getElementById(elementId);
+            element.textContent = success ? '✓ Pass' : '✕ Fail';
+            element.className = success ? 'status-pass' : 'status-fail';
+        }
+
+        // Activity Logging
+        const activityLog = [];
+        
+        function logActivity(action, metadata) {
+            const activity = {
+                timestamp: new Date().toISOString(),
+                userId: currentUser?.email || 'anonymous',
+                action,
+                metadata
+            };
+            
+            activityLog.push(activity);
+            console.log('Activity logged:', activity);
+            
+            // Update activity result
+            if (activityLog.length > 0) {
+                updateResult('activity-result', true);
+            }
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            // Check for existing session
+            const savedSessionId = localStorage.getItem('sessionId');
+            if (savedSessionId) {
+                sessionId = savedSessionId;
+                showStatus('login-status', 'Restored previous session', 'info');
+            }
+            
+            // Populate profile form if user exists
+            if (currentUser) {
+                document.getElementById('profile-email').value = currentUser.email;
+                document.getElementById('profile-name').value = currentUser.name;
+            }
+        });
+    </script>
+</body>
+</html>

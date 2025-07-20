@@ -38,10 +38,10 @@ const twaManifest = {
   maskableIconUrl: 'https://localhost:3000/icon-512.png',
   splashScreenFadeOutDuration: 300,
   signingKey: {
-    alias: 'android',
-    path: './android.keystore',
-    password: 'android',
-    keyPassword: 'android'
+    alias: process.env.ANDROID_KEY_ALIAS || 'android',
+    path: process.env.ANDROID_KEYSTORE_PATH || './android.keystore',
+    password: process.env.ANDROID_KEYSTORE_PASSWORD || 'changeme',
+    keyPassword: process.env.ANDROID_KEY_PASSWORD || 'changeme'
   },
   appVersionName: APP_VERSION,
   appVersionCode: 1,

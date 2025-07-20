@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/supabase-db'
+import { logger } from '@/lib/logger'
 
 export async function GET(req: NextRequest) {
   try {
@@ -64,7 +65,7 @@ Note: This is demo data. Configure Supabase database to track real sessions.
     try {
       user = await getAuthenticatedUser()
     } catch (error) {
-      console.warn('Auth check failed in download logs:', error)
+      logger.debug('Auth check failed in download logs', { error })
     }
     
     // If no user, return mock log data
@@ -284,7 +285,7 @@ ${topAreas.length > 0 ?
       }
     })
   } catch (error) {
-    console.error('Download logs error:', error)
+    logger.error('Download logs error', error as Error)
     return NextResponse.json(
       { error: 'Failed to generate logs' },
       { status: 500 }

@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a1a1a">
+    <title>TalkTime - Practice English Conversations</title>
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        :root {
+            --deep-charcoal: #1a1a1a;
+            --jet: #2d2d2d;
+            --warm-coral: #ff8e58;
+            --warm-coral-light: #ffb088;
+            --warm-coral-dark: #ff6e32;
+            --white: #ffffff;
+            --success: #4CAF50;
+            --error: #f44336;
+            --warning: #ff9800;
+            --info: #2196F3;
+        }
+
+        .light {
+            --deep-charcoal: #ffffff;
+            --jet: #f5f5f5;
+            --warm-coral: #ff6e32;
+            --warm-coral-light: #ff8e58;
+            --warm-coral-dark: #ff5014;
+            --white: #1a1a1a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--deep-charcoal);
+            color: var(--white);
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Skip Links */
+        .skip-links {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .skip-link {
+            position: absolute;
+            left: -10000px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            background: var(--warm-coral);
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+
+        .skip-link:focus {
+            position: fixed;
+            left: 16px;
+            top: 16px;
+            width: auto;
+            height: auto;
+            z-index: 1000;
+        }
+
+        /* Header */
+        .header {
+            background: var(--jet);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--warm-coral);
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .session-timer {
+            font-size: 1.2rem;
+            color: var(--warm-coral-light);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Main Container */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 72px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: var(--jet);
+            padding: 1.5rem;
+            overflow-y: auto;
+            border-right: 1px solid rgba(255, 142, 88, 0.2);
+        }
+
+        .mode-selector {
+            margin-bottom: 2rem;
+        }
+
+        .mode-button {
+            width: 100%;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            background: var(--deep-charcoal);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            color: var(--white);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .mode-button:hover {
+            border-color: var(--warm-coral);
+            transform: translateX(5px);
+        }
+
+        .mode-button.active {
+            background: var(--warm-coral);
+            border-color: var(--warm-coral);
+        }
+
+        .mode-icon {
+            font-size: 1.5rem;
+        }
+
+        .stats-card {
+            background: var(--deep-charcoal);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .stats-card h3 {
+            color: var(--warm-coral);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--warm-coral-light);
+        }
+
+        /* Chat Area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--deep-charcoal);
+        }
+
+        .messages-container {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin-bottom: 1.5rem;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 1rem 1.5rem;
+            border-radius: 20px;
+            position: relative;
+        }
+
+        .message.user {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .message.user .message-bubble {
+            background: var(--warm-coral);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-bubble {
+            background: var(--jet);
+            color: var(--white);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-top: 0.25rem;
+        }
+
+        .assessment-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 0.5rem;
+            border-left: 3px solid var(--warm-coral);
+        }
+
+        .assessment-title {
+            color: var(--warm-coral);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .correction {
+            background: rgba(255, 142, 88, 0.1);
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 0.3rem;
+            padding: 1rem;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--warm-coral);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                opacity: 0.3;
+                transform: translateY(0);
+            }
+            30% {
+                opacity: 1;
+                transform: translateY(-10px);
+            }
+        }
+
+        /* Input Area */
+        .input-area {
+            background: var(--jet);
+            padding: 1.5rem 2rem;
+            border-top: 1px solid rgba(255, 142, 88, 0.2);
+        }
+
+        .input-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .voice-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--warm-coral);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .voice-button:hover {
+            background: var(--warm-coral-dark);
+            transform: scale(1.05);
+        }
+
+        .voice-button.recording {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 142, 88, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 20px rgba(255, 142, 88, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 142, 88, 0);
+            }
+        }
+
+        .voice-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        .input-field {
+            flex: 1;
+            background: var(--deep-charcoal);
+            border: 2px solid rgba(255, 142, 88, 0.3);
+            border-radius: 25px;
+            padding: 1rem 1.5rem;
+            color: var(--white);
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--warm-coral);
+        }
+
+        .send-button {
+            padding: 0.75rem 1.5rem;
+            background: var(--warm-coral);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .send-button:hover {
+            background: var(--warm-coral-dark);
+            transform: translateY(-2px);
+        }
+
+        /* Floating Action Buttons */
+        .fab-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 50;
+        }
+
+        .fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--warm-coral);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: all 0.3s;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 50;
+        }
+
+        .theme-button {
+            padding: 0.75rem;
+            background: var(--jet);
+            color: var(--warm-coral);
+            border: 2px solid var(--warm-coral);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .theme-button:hover {
+            background: var(--warm-coral);
+            color: white;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+
+        .toast {
+            background: var(--jet);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Transcript Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--jet);
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            color: var(--warm-coral);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Offline Banner */
+        .offline-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--warning);
+            color: white;
+            padding: 0.75rem;
+            text-align: center;
+            z-index: 1001;
+            display: none;
+        }
+
+        /* Loading Skeleton */
+        .skeleton {
+            background: linear-gradient(
+                90deg,
+                rgba(255, 142, 88, 0.1) 0%,
+                rgba(255, 142, 88, 0.2) 50%,
+                rgba(255, 142, 88, 0.1) 100%
+            );
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        /* Screen Reader Only */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            
+            .message-bubble {
+                max-width: 85%;
+            }
+            
+            .header {
+                padding: 1rem;
+            }
+            
+            .messages-container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Skip Links -->
+    <div class="skip-links">
+        <a href="#main-content" class="skip-link">Skip to main content</a>
+        <a href="#conversation-controls" class="skip-link">Skip to conversation controls</a>
+    </div>
+
+    <!-- Offline Banner -->
+    <div class="offline-banner" role="alert">
+        You are currently offline. Your messages will be sent when connection is restored.
+    </div>
+
+    <!-- Theme Toggle -->
+    <div class="theme-toggle">
+        <button class="theme-button" aria-label="Toggle theme" onclick="toggleTheme()">
+            <span id="theme-icon">🌙</span>
+        </button>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <h1 class="logo">TalkTime</h1>
+        <div class="header-controls">
+            <div class="session-timer" id="session-timer" aria-label="Session duration">00:00</div>
+            <button class="send-button" onclick="endSession()">End Session</button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="mode-selector">
+                <h2 style="margin-bottom: 1rem; color: var(--warm-coral);">Learning Mode</h2>
+                <button class="mode-button active" onclick="setMode('conversation')">
+                    <span class="mode-icon">💬</span>
+                    <div>
+                        <div style="font-weight: 600;">Conversation</div>
+                        <div style="font-size: 0.875rem; opacity: 0.8;">Natural dialogue practice</div>
+                    </div>
+                </button>
+                <button class="mode-button" onclick="setMode('learning')">
+                    <span class="mode-icon">📚</span>
+                    <div>
+                        <div style="font-weight: 600;">Learning</div>
+                        <div style="font-size: 0.875rem; opacity: 0.8;">Grammar & corrections</div>
+                    </div>
+                </button>
+            </div>
+
+            <div class="stats-card">
+                <h3>Today's Practice</h3>
+                <div class="stat-value" id="practice-time">0m</div>
+                <div style="font-size: 0.875rem; opacity: 0.8;">Total speaking time</div>
+            </div>
+
+            <div class="stats-card">
+                <h3>Conversations</h3>
+                <div class="stat-value" id="conversation-count">0</div>
+                <div style="font-size: 0.875rem; opacity: 0.8;">Completed today</div>
+            </div>
+
+            <div class="stats-card">
+                <h3>Streak</h3>
+                <div class="stat-value" id="streak">🔥 0</div>
+                <div style="font-size: 0.875rem; opacity: 0.8;">Days in a row</div>
+            </div>
+        </aside>
+
+        <!-- Chat Area -->
+        <main class="chat-area" id="main-content">
+            <div class="messages-container" id="messages-container">
+                <!-- Welcome Message -->
+                <div class="message assistant">
+                    <div class="message-bubble">
+                        <p>Hello! I'm your TalkTime conversation partner. I'm here to help you practice English in a natural, supportive way. How are you doing today?</p>
+                        <div class="message-time">10:00 AM</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area" id="conversation-controls">
+                <div class="input-controls">
+                    <button 
+                        class="voice-button" 
+                        id="voice-button"
+                        onclick="toggleRecording()"
+                        aria-label="Start voice recording"
+                    >
+                        <svg class="voice-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v7c0 1.66 1.34 3 3 3z"/>
+                            <path d="M17.3 11c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                        </svg>
+                    </button>
+                    <input 
+                        type="text" 
+                        class="input-field" 
+                        id="message-input"
+                        placeholder="Type a message or use voice..."
+                        aria-label="Message input"
+                        onkeypress="handleKeyPress(event)"
+                    >
+                    <button class="send-button" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Floating Action Buttons -->
+    <div class="fab-container">
+        <button class="fab" onclick="showTranscript()" aria-label="View transcript">
+            📝
+        </button>
+        <button class="fab" onclick="exportConversation()" aria-label="Export conversation">
+            💾
+        </button>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Transcript Modal -->
+    <div class="modal" id="transcript-modal" role="dialog" aria-label="Conversation transcript">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 style="color: var(--warm-coral);">Conversation Transcript</h2>
+                <button class="close-button" onclick="closeTranscript()" aria-label="Close transcript">&times;</button>
+            </div>
+            <div id="transcript-content">
+                <!-- Transcript will be populated here -->
+            </div>
+            <button class="send-button" onclick="downloadTranscript()" style="margin-top: 1rem;">
+                Download Transcript
+            </button>
+        </div>
+    </div>
+
+    <!-- Screen Reader Announcements -->
+    <div role="status" aria-live="polite" aria-atomic="true" class="sr-only" id="sr-announcements"></div>
+
+    <script>
+        // Initialize
+        let isRecording = false;
+        let sessionStartTime = Date.now();
+        let currentMode = 'conversation';
+        let messages = [];
+        let conversationCount = 0;
+        let totalPracticeTime = 0;
+
+        // Load saved data
+        const savedData = JSON.parse(localStorage.getItem('talktimeData') || '{}');
+        if (savedData.conversationCount) conversationCount = savedData.conversationCount;
+        if (savedData.totalPracticeTime) totalPracticeTime = savedData.totalPracticeTime;
+        if (savedData.streak) document.getElementById('streak').textContent = `🔥 ${savedData.streak}`;
+
+        // Theme Management
+        const currentTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.className = currentTheme;
+        updateThemeIcon();
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const newTheme = html.className === 'light' ? 'dark' : 'light';
+            html.className = newTheme;
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon();
+            announceToScreenReader(`Theme changed to ${newTheme} mode`);
+        }
+
+        function updateThemeIcon() {
+            const icon = document.getElementById('theme-icon');
+            icon.textContent = document.documentElement.className === 'light' ? '☀️' : '🌙';
+        }
+
+        // Session Timer
+        setInterval(() => {
+            const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('session-timer').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }, 1000);
+
+        // Voice Recording
+        function toggleRecording() {
+            const button = document.getElementById('voice-button');
+            isRecording = !isRecording;
+            
+            if (isRecording) {
+                button.classList.add('recording');
+                button.setAttribute('aria-label', 'Stop recording');
+                showToast('info', 'Recording started. Speak clearly!');
+                announceToScreenReader('Recording started');
+                
+                // Simulate speech recognition
+                setTimeout(() => {
+                    if (isRecording) {
+                        const sampleResponses = [
+                            "I'm doing great, thank you! How about you?",
+                            "I'd like to practice talking about my hobbies.",
+                            "Can we discuss travel experiences?",
+                            "I want to improve my business English."
+                        ];
+                        const response = sampleResponses[Math.floor(Math.random() * sampleResponses.length)];
+                        document.getElementById('message-input').value = response;
+                        toggleRecording();
+                    }
+                }, 3000);
+            } else {
+                button.classList.remove('recording');
+                button.setAttribute('aria-label', 'Start voice recording');
+                announceToScreenReader('Recording stopped');
+            }
+        }
+
+        // Send Message
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message
+            addMessage('user', message);
+            input.value = '';
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            // Simulate AI response
+            setTimeout(() => {
+                hideTypingIndicator();
+                
+                const responses = {
+                    conversation: [
+                        "That's wonderful to hear! What have you been up to lately?",
+                        "I'd be happy to discuss that topic. Tell me more about your interests.",
+                        "Great choice! Travel is always an exciting topic. Where was your last trip?",
+                        "Business English is very useful. What industry do you work in?"
+                    ],
+                    learning: [
+                        {
+                            text: "That's a good sentence! Here's some feedback on your English:",
+                            assessment: {
+                                correctedText: "I'm doing great, thank you! How about you?",
+                                corrections: [
+                                    {
+                                        type: "Grammar",
+                                        original: "I doing great",
+                                        corrected: "I'm doing great",
+                                        explanation: "Use the present continuous form with 'am'"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                };
+                
+                if (currentMode === 'conversation') {
+                    const response = responses.conversation[Math.floor(Math.random() * responses.conversation.length)];
+                    addMessage('assistant', response);
+                } else {
+                    const response = responses.learning[0];
+                    addMessage('assistant', response.text, response.assessment);
+                }
+            }, 1500);
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Add Message to Chat
+        function addMessage(role, content, assessment = null) {
+            const container = document.getElementById('messages-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            let assessmentHTML = '';
+            if (assessment) {
+                assessmentHTML = `
+                    <div class="assessment-card">
+                        <div class="assessment-title">📝 Language Feedback</div>
+                        <div class="correction">
+                            <strong>Corrected:</strong> ${assessment.correctedText}
+                        </div>
+                        ${assessment.corrections.map(c => `
+                            <div style="font-size: 0.875rem; margin-top: 0.5rem;">
+                                <strong>${c.type}:</strong> "${c.original}" → "${c.corrected}"<br>
+                                <em style="opacity: 0.8;">${c.explanation}</em>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            
+            messageDiv.innerHTML = `
+                <div class="message-bubble">
+                    <p>${content}</p>
+                    <div class="message-time">${time}</div>
+                    ${assessmentHTML}
+                </div>
+            `;
+            
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+            
+            // Save message
+            messages.push({ role, content, time, assessment });
+            
+            // Announce to screen reader
+            announceToScreenReader(`${role === 'user' ? 'You' : 'TalkTime'} said: ${content}`);
+        }
+
+        // Typing Indicator
+        function showTypingIndicator() {
+            const container = document.getElementById('messages-container');
+            const indicator = document.createElement('div');
+            indicator.className = 'message assistant';
+            indicator.id = 'typing-indicator';
+            indicator.innerHTML = `
+                <div class="message-bubble">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(indicator);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) indicator.remove();
+        }
+
+        // Mode Selection
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.closest('.mode-button').classList.add('active');
+            
+            showToast('info', `Switched to ${mode} mode`);
+            announceToScreenReader(`Learning mode changed to ${mode}`);
+        }
+
+        // Toast Notifications
+        function showToast(type, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+            
+            const icons = {
+                success: '✓',
+                error: '✕',
+                warning: '⚠',
+                info: 'ℹ'
+            };
+            
+            toast.innerHTML = `
+                <span>${icons[type]}</span>
+                <span>${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Screen Reader Announcements
+        function announceToScreenReader(message) {
+            const announcement = document.getElementById('sr-announcements');
+            announcement.textContent = message;
+            setTimeout(() => {
+                announcement.textContent = '';
+            }, 1000);
+        }
+
+        // Transcript Functions
+        function showTranscript() {
+            const modal = document.getElementById('transcript-modal');
+            const content = document.getElementById('transcript-content');
+            
+            content.innerHTML = messages.map(msg => `
+                <div class="message ${msg.role}">
+                    <strong>${msg.role === 'user' ? 'You' : 'TalkTime'}:</strong> ${msg.content}
+                    <div style="font-size: 0.75rem; opacity: 0.7;">${msg.time}</div>
+                    ${msg.assessment ? `
+                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(255,142,88,0.1); border-radius: 4px;">
+                            <em>Corrected: ${msg.assessment.correctedText}</em>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+            
+            modal.style.display = 'block';
+            announceToScreenReader('Transcript modal opened');
+        }
+
+        function closeTranscript() {
+            document.getElementById('transcript-modal').style.display = 'none';
+            announceToScreenReader('Transcript modal closed');
+        }
+
+        function downloadTranscript() {
+            const content = `TalkTime Conversation Transcript
+================================
+Date: ${new Date().toLocaleDateString()}
+Duration: ${document.getElementById('session-timer').textContent}
+Mode: ${currentMode}
+
+Conversation:
+-------------
+${messages.map(msg => `
+[${msg.time}] ${msg.role === 'user' ? 'You' : 'TalkTime'}: ${msg.content}
+${msg.assessment ? `\n   Corrected: ${msg.assessment.correctedText}` : ''}
+`).join('\n')}`;
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `talktime-transcript-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('success', 'Transcript downloaded!');
+        }
+
+        // Export Conversation
+        function exportConversation() {
+            const data = {
+                date: new Date().toISOString(),
+                duration: document.getElementById('session-timer').textContent,
+                mode: currentMode,
+                messages: messages
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `talktime-conversation-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('success', 'Conversation exported!');
+        }
+
+        // End Session
+        function endSession() {
+            const duration = Math.floor((Date.now() - sessionStartTime) / 1000 / 60);
+            conversationCount++;
+            totalPracticeTime += duration;
+            
+            // Update stats
+            document.getElementById('conversation-count').textContent = conversationCount;
+            document.getElementById('practice-time').textContent = `${totalPracticeTime}m`;
+            
+            // Save data
+            localStorage.setItem('talktimeData', JSON.stringify({
+                conversationCount,
+                totalPracticeTime,
+                streak: 1, // Simplified for demo
+                lastPractice: new Date().toISOString()
+            }));
+            
+            showToast('success', `Great session! You practiced for ${duration} minutes.`);
+            
+            // Reset for new session
+            setTimeout(() => {
+                messages = [];
+                document.getElementById('messages-container').innerHTML = `
+                    <div class="message assistant">
+                        <div class="message-bubble">
+                            <p>Welcome back! Ready for another practice session?</p>
+                            <div class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                    </div>
+                `;
+                sessionStartTime = Date.now();
+            }, 2000);
+        }
+
+        // Offline Detection
+        window.addEventListener('online', () => {
+            document.querySelector('.offline-banner').style.display = 'none';
+            showToast('success', 'Connection restored!');
+        });
+
+        window.addEventListener('offline', () => {
+            document.querySelector('.offline-banner').style.display = 'block';
+            showToast('warning', 'You are offline. Messages will sync when connected.');
+        });
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker registration failed'));
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + Enter to send message
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                sendMessage();
+            }
+            // Escape to close modals
+            if (e.key === 'Escape') {
+                closeTranscript();
+            }
+        });
+
+        // Initialize stats display
+        document.getElementById('conversation-count').textContent = conversationCount;
+        document.getElementById('practice-time').textContent = `${totalPracticeTime}m`;
+    </script>
+</body>
+</html>

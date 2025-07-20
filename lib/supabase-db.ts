@@ -1,10 +1,21 @@
 import { createClient } from '@supabase/supabase-js'
+import { env } from './env-validation'
+import { logger } from './logger'
 
-// Initialize Supabase client with your credentials
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Initialize Supabase client with validated credentials
+let supabaseDb: ReturnType<typeof createClient> | null = null
 
-export const supabaseDb = createClient(supabaseUrl, supabaseAnonKey)
+try {
+  if (env.NEXT_PUBLIC_SUPABASE_URL && env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    supabaseDb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  } else {
+    logger.warn('Supabase credentials not available, database features will be disabled')
+  }
+} catch (error) {
+  logger.error('Failed to initialize Supabase client', error as Error)
+}
+
+export { supabaseDb }
 
 // Database types for JustSpeak
 export interface User {

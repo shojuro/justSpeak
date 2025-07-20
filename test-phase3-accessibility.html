@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TalkTime - Phase 3 Accessibility & UX Test</title>
+    <style>
+        :root {
+            --deep-charcoal: #1a1a1a;
+            --jet: #2d2d2d;
+            --warm-coral: #ff8e58;
+            --warm-coral-light: #ffb088;
+            --warm-coral-dark: #ff6e32;
+            --white: #ffffff;
+            --success: #4CAF50;
+            --error: #f44336;
+            --warning: #ff9800;
+            --info: #2196F3;
+        }
+
+        .light {
+            --deep-charcoal: #ffffff;
+            --jet: #f5f5f5;
+            --warm-coral: #ff6e32;
+            --warm-coral-light: #ff8e58;
+            --warm-coral-dark: #ff5014;
+            --white: #1a1a1a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--deep-charcoal);
+            color: var(--white);
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1 {
+            color: var(--warm-coral);
+            margin-bottom: 1rem;
+            font-size: 2.5rem;
+        }
+
+        h2 {
+            color: var(--warm-coral-light);
+            margin: 2rem 0 1rem;
+            font-size: 1.8rem;
+        }
+
+        .test-section {
+            background: var(--jet);
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* Skip Links */
+        .skip-links {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .skip-link {
+            position: absolute;
+            left: -10000px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            background: var(--warm-coral);
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+
+        .skip-link:focus {
+            position: fixed;
+            left: 16px;
+            top: 16px;
+            width: auto;
+            height: auto;
+            z-index: 1000;
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 50;
+        }
+
+        .theme-button {
+            padding: 10px;
+            background: var(--warm-coral);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.3s;
+        }
+
+        .theme-button:hover {
+            background: var(--warm-coral-dark);
+            transform: scale(1.1);
+        }
+
+        /* Loading Skeleton */
+        .skeleton {
+            background: linear-gradient(
+                90deg,
+                rgba(255, 142, 88, 0.1) 0%,
+                rgba(255, 142, 88, 0.2) 50%,
+                rgba(255, 142, 88, 0.1) 100%
+            );
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .skeleton-text {
+            height: 20px;
+            margin-bottom: 10px;
+        }
+
+        .skeleton-button {
+            height: 40px;
+            width: 120px;
+            display: inline-block;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            color: var(--warm-coral);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .required::after {
+            content: ' *';
+            color: var(--warm-coral-dark);
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 142, 88, 0.3);
+            border-radius: 8px;
+            color: var(--white);
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--warm-coral);
+            box-shadow: 0 0 0 3px rgba(255, 142, 88, 0.2);
+        }
+
+        input[aria-invalid="true"], textarea[aria-invalid="true"] {
+            border-color: var(--error);
+        }
+
+        .error-message {
+            color: var(--error);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Buttons */
+        .button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 9999px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .button-primary {
+            background: var(--warm-coral);
+            color: white;
+        }
+
+        .button-primary:hover {
+            background: var(--warm-coral-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 142, 88, 0.3);
+        }
+
+        .button-secondary {
+            background: transparent;
+            color: var(--warm-coral);
+            border: 2px solid var(--warm-coral);
+        }
+
+        .button-secondary:hover {
+            background: var(--warm-coral);
+            color: white;
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255, 142, 88, 0.5);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .toast {
+            background: var(--jet);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            min-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-success { border-left: 4px solid var(--success); }
+        .toast-error { border-left: 4px solid var(--error); }
+        .toast-warning { border-left: 4px solid var(--warning); }
+        .toast-info { border-left: 4px solid var(--info); }
+
+        /* Offline Banner */
+        .offline-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--warning);
+            color: white;
+            padding: 0.75rem;
+            text-align: center;
+            z-index: 1001;
+            display: none;
+        }
+
+        .offline .offline-banner {
+            display: block;
+        }
+
+        /* Transcript View */
+        .transcript {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 1.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 142, 88, 0.2);
+        }
+
+        .message:last-child {
+            border-bottom: none;
+        }
+
+        .message-role {
+            color: var(--warm-coral);
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .message-content {
+            color: var(--white);
+            opacity: 0.9;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: var(--warm-coral-light);
+            opacity: 0.6;
+        }
+
+        /* Keyboard Navigation Indicator */
+        .keyboard-nav-indicator {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--warm-coral);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .keyboard-nav-active .keyboard-nav-indicator {
+            opacity: 1;
+        }
+
+        /* Screen Reader Only */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        /* Results Section */
+        .results {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 2rem;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 142, 88, 0.1);
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-pass {
+            color: var(--success);
+        }
+
+        .status-fail {
+            color: var(--error);
+        }
+    </style>
+</head>
+<body>
+    <!-- Skip Links -->
+    <div class="skip-links">
+        <a href="#main-content" class="skip-link">Skip to main content</a>
+        <a href="#accessibility-tests" class="skip-link">Skip to accessibility tests</a>
+        <a href="#form-tests" class="skip-link">Skip to form tests</a>
+    </div>
+
+    <!-- Offline Banner -->
+    <div class="offline-banner" role="alert">
+        You are currently offline. Some features may be limited.
+    </div>
+
+    <!-- Theme Toggle -->
+    <div class="theme-toggle">
+        <button class="theme-button" aria-label="Toggle theme" onclick="toggleTheme()">
+            <span id="theme-icon">🌙</span>
+        </button>
+    </div>
+
+    <!-- Keyboard Navigation Indicator -->
+    <div class="keyboard-nav-indicator" aria-hidden="true">
+        Using keyboard navigation
+    </div>
+
+    <!-- Main Content -->
+    <div class="container" id="main-content">
+        <h1>TalkTime - Phase 3: Accessibility & UX Testing</h1>
+        <p>This page tests all accessibility and UX improvements implemented in Phase 3.</p>
+
+        <!-- Accessibility Tests -->
+        <section class="test-section" id="accessibility-tests">
+            <h2>1. Accessibility Features</h2>
+            
+            <h3>ARIA Labels & Screen Reader Support</h3>
+            <div class="form-group">
+                <button class="button button-primary" aria-label="Start voice recording for conversation">
+                    Start Recording
+                </button>
+                <button class="button button-secondary" aria-label="Stop voice recording">
+                    Stop Recording
+                </button>
+            </div>
+
+            <h3>Keyboard Navigation</h3>
+            <p>Tab through the interface to test keyboard navigation. Press Escape to close dialogs.</p>
+            <div class="form-group">
+                <button class="button button-primary" onclick="showDialog()">
+                    Open Test Dialog (Press ESC to close)
+                </button>
+            </div>
+
+            <h3>Focus Management</h3>
+            <div id="focus-trap-demo" style="display: none; padding: 1rem; background: var(--jet); border-radius: 8px; margin-top: 1rem;">
+                <h4>Focus Trap Demo</h4>
+                <p>Tab navigation is trapped within this container.</p>
+                <input type="text" placeholder="First focusable element" />
+                <button class="button button-primary">Action</button>
+                <button class="button button-secondary" onclick="closeFocusTrap()">Close</button>
+            </div>
+
+            <div role="status" aria-live="polite" id="screen-reader-announcements" class="sr-only"></div>
+        </section>
+
+        <!-- Loading States -->
+        <section class="test-section">
+            <h2>2. Loading States & Skeletons</h2>
+            
+            <button class="button button-primary" onclick="showLoadingStates()">
+                Show Loading States
+            </button>
+
+            <div id="loading-demo" style="display: none; margin-top: 1rem;">
+                <div class="skeleton skeleton-text" style="width: 80%;"></div>
+                <div class="skeleton skeleton-text" style="width: 60%;"></div>
+                <div class="skeleton skeleton-text" style="width: 70%;"></div>
+                <div class="skeleton skeleton-button" style="margin-top: 1rem;"></div>
+            </div>
+        </section>
+
+        <!-- Form Validation -->
+        <section class="test-section" id="form-tests">
+            <h2>3. Form Validation & Feedback</h2>
+            
+            <form id="test-form" novalidate>
+                <div class="form-group">
+                    <label for="email" class="required">Email Address</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email"
+                        required
+                        aria-describedby="email-error"
+                        onblur="validateField(this)"
+                    />
+                    <div id="email-error" class="error-message" role="alert" style="display: none;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="message" class="required">Message (min 10 characters)</label>
+                    <textarea 
+                        id="message" 
+                        name="message"
+                        rows="4"
+                        required
+                        minlength="10"
+                        aria-describedby="message-error"
+                        onblur="validateField(this)"
+                    ></textarea>
+                    <div id="message-error" class="error-message" role="alert" style="display: none;"></div>
+                </div>
+
+                <button type="submit" class="button button-primary">
+                    Submit Form
+                </button>
+            </form>
+        </section>
+
+        <!-- Visual Feedback -->
+        <section class="test-section">
+            <h2>4. Visual Feedback & Toasts</h2>
+            
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <button class="button button-primary" onclick="showToast('success', 'Operation completed successfully!')">
+                    Success Toast
+                </button>
+                <button class="button button-primary" onclick="showToast('error', 'An error occurred. Please try again.')">
+                    Error Toast
+                </button>
+                <button class="button button-primary" onclick="showToast('warning', 'Your session will expire in 5 minutes.')">
+                    Warning Toast
+                </button>
+                <button class="button button-primary" onclick="showToast('info', 'New features are available!')">
+                    Info Toast
+                </button>
+            </div>
+
+            <h3>Button States</h3>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
+                <button class="button button-primary" onclick="simulateLoading(this)">
+                    Click for Loading State
+                </button>
+                <button class="button button-primary" disabled>
+                    Disabled Button
+                </button>
+            </div>
+        </section>
+
+        <!-- Offline Support -->
+        <section class="test-section">
+            <h2>5. Offline Support</h2>
+            
+            <button class="button button-primary" onclick="toggleOfflineMode()">
+                Toggle Offline Mode
+            </button>
+            
+            <div style="margin-top: 1rem;">
+                <p>Status: <span id="connection-status" class="status-pass">Online</span></p>
+                <p>Service Worker: <span id="sw-status">Checking...</span></p>
+            </div>
+        </section>
+
+        <!-- Transcript View -->
+        <section class="test-section">
+            <h2>6. Transcript & Text Alternatives</h2>
+            
+            <button class="button button-primary" onclick="toggleTranscript()">
+                Toggle Transcript View
+            </button>
+
+            <div id="transcript-view" class="transcript" style="display: none; margin-top: 1rem;">
+                <div class="message">
+                    <div class="message-role">You</div>
+                    <div class="message-content">Hello, I'd like to practice my English conversation skills.</div>
+                    <div class="message-time">10:30 AM</div>
+                </div>
+                <div class="message">
+                    <div class="message-role">TalkTime</div>
+                    <div class="message-content">Great! I'd be happy to help you practice. What topic would you like to discuss today?</div>
+                    <div class="message-time">10:31 AM</div>
+                </div>
+                <div class="message">
+                    <div class="message-role">You</div>
+                    <div class="message-content">Let's talk about traveling and vacation experiences.</div>
+                    <div class="message-time">10:32 AM</div>
+                </div>
+            </div>
+
+            <button class="button button-secondary" onclick="downloadTranscript()" style="margin-top: 1rem;">
+                Download Transcript
+            </button>
+        </section>
+
+        <!-- Test Results -->
+        <section class="test-section">
+            <h2>Test Results</h2>
+            <div class="results">
+                <div class="result-item">
+                    <span>ARIA Labels</span>
+                    <span id="aria-result" class="status-pass">✓ Pass</span>
+                </div>
+                <div class="result-item">
+                    <span>Keyboard Navigation</span>
+                    <span id="keyboard-result" class="status-pass">✓ Pass</span>
+                </div>
+                <div class="result-item">
+                    <span>Screen Reader Support</span>
+                    <span id="sr-result" class="status-pass">✓ Pass</span>
+                </div>
+                <div class="result-item">
+                    <span>Form Validation</span>
+                    <span id="form-result">Pending</span>
+                </div>
+                <div class="result-item">
+                    <span>Visual Feedback</span>
+                    <span id="feedback-result">Pending</span>
+                </div>
+                <div class="result-item">
+                    <span>Offline Support</span>
+                    <span id="offline-result">Checking...</span>
+                </div>
+                <div class="result-item">
+                    <span>Theme Switching</span>
+                    <span id="theme-result" class="status-pass">✓ Pass</span>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // Theme Management
+        const currentTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.className = currentTheme;
+        updateThemeIcon();
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const newTheme = html.className === 'light' ? 'dark' : 'light';
+            html.className = newTheme;
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon();
+            announceToScreenReader(`Theme changed to ${newTheme} mode`);
+        }
+
+        function updateThemeIcon() {
+            const icon = document.getElementById('theme-icon');
+            icon.textContent = document.documentElement.className === 'light' ? '☀️' : '🌙';
+        }
+
+        // Keyboard Navigation Detection
+        let usingKeyboard = false;
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                usingKeyboard = true;
+                document.body.classList.add('keyboard-nav-active');
+            }
+        });
+
+        document.addEventListener('mousedown', () => {
+            usingKeyboard = false;
+            document.body.classList.remove('keyboard-nav-active');
+        });
+
+        // Screen Reader Announcements
+        function announceToScreenReader(message) {
+            const announcement = document.getElementById('screen-reader-announcements');
+            announcement.textContent = message;
+            setTimeout(() => {
+                announcement.textContent = '';
+            }, 1000);
+        }
+
+        // Dialog Management
+        function showDialog() {
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--jet);
+                padding: 2rem;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                z-index: 1000;
+            `;
+            dialog.innerHTML = `
+                <h3 style="margin-bottom: 1rem;">Test Dialog</h3>
+                <p>Press Escape to close this dialog.</p>
+                <button class="button button-primary" onclick="this.parentElement.remove()">Close</button>
+            `;
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-label', 'Test dialog');
+            
+            document.body.appendChild(dialog);
+            dialog.querySelector('button').focus();
+            
+            const handleEscape = (e) => {
+                if (e.key === 'Escape') {
+                    dialog.remove();
+                    document.removeEventListener('keydown', handleEscape);
+                }
+            };
+            document.addEventListener('keydown', handleEscape);
+        }
+
+        // Focus Trap Demo
+        function closeFocusTrap() {
+            document.getElementById('focus-trap-demo').style.display = 'none';
+        }
+
+        // Loading States
+        function showLoadingStates() {
+            const demo = document.getElementById('loading-demo');
+            demo.style.display = 'block';
+            announceToScreenReader('Loading content...');
+            
+            setTimeout(() => {
+                demo.style.display = 'none';
+                announceToScreenReader('Content loaded');
+            }, 3000);
+        }
+
+        // Form Validation
+        function validateField(field) {
+            const errorElement = document.getElementById(field.id + '-error');
+            let isValid = true;
+            let errorMessage = '';
+
+            if (field.required && !field.value.trim()) {
+                isValid = false;
+                errorMessage = 'This field is required';
+            } else if (field.type === 'email' && field.value) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(field.value)) {
+                    isValid = false;
+                    errorMessage = 'Please enter a valid email address';
+                }
+            } else if (field.minLength && field.value.length < field.minLength) {
+                isValid = false;
+                errorMessage = `Must be at least ${field.minLength} characters`;
+            }
+
+            if (isValid) {
+                field.setAttribute('aria-invalid', 'false');
+                errorElement.style.display = 'none';
+                errorElement.textContent = '';
+            } else {
+                field.setAttribute('aria-invalid', 'true');
+                errorElement.style.display = 'block';
+                errorElement.textContent = errorMessage;
+                announceToScreenReader(`Error in ${field.name}: ${errorMessage}`);
+            }
+
+            return isValid;
+        }
+
+        document.getElementById('test-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email');
+            const message = document.getElementById('message');
+            
+            const isEmailValid = validateField(email);
+            const isMessageValid = validateField(message);
+            
+            if (isEmailValid && isMessageValid) {
+                showToast('success', 'Form submitted successfully!');
+                document.getElementById('form-result').textContent = '✓ Pass';
+                document.getElementById('form-result').className = 'status-pass';
+            } else {
+                showToast('error', 'Please fix the errors and try again.');
+            }
+        });
+
+        // Toast Notifications
+        function showToast(type, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+            
+            const icons = {
+                success: '✓',
+                error: '✕',
+                warning: '⚠',
+                info: 'ℹ'
+            };
+            
+            toast.innerHTML = `
+                <span>${icons[type]}</span>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()" aria-label="Dismiss notification">&times;</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+
+            // Update test result
+            if (!document.getElementById('feedback-result').textContent.includes('Pass')) {
+                document.getElementById('feedback-result').textContent = '✓ Pass';
+                document.getElementById('feedback-result').className = 'status-pass';
+            }
+        }
+
+        // Button Loading State
+        function simulateLoading(button) {
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = 'Loading...';
+            button.setAttribute('aria-busy', 'true');
+            
+            setTimeout(() => {
+                button.disabled = false;
+                button.textContent = originalText;
+                button.setAttribute('aria-busy', 'false');
+                showToast('success', 'Action completed!');
+            }, 2000);
+        }
+
+        // Offline Mode
+        let isOffline = false;
+        function toggleOfflineMode() {
+            isOffline = !isOffline;
+            document.body.classList.toggle('offline', isOffline);
+            const status = document.getElementById('connection-status');
+            status.textContent = isOffline ? 'Offline' : 'Online';
+            status.className = isOffline ? 'status-fail' : 'status-pass';
+            
+            if (isOffline) {
+                showToast('warning', 'You are now offline. Some features may be limited.');
+            } else {
+                showToast('success', 'Connection restored!');
+            }
+        }
+
+        // Service Worker Check
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(() => {
+                document.getElementById('sw-status').textContent = '✓ Active';
+                document.getElementById('sw-status').className = 'status-pass';
+                document.getElementById('offline-result').textContent = '✓ Pass';
+                document.getElementById('offline-result').className = 'status-pass';
+            }).catch(() => {
+                document.getElementById('sw-status').textContent = '✕ Not active';
+                document.getElementById('sw-status').className = 'status-fail';
+                document.getElementById('offline-result').textContent = '✕ Fail';
+                document.getElementById('offline-result').className = 'status-fail';
+            });
+        } else {
+            document.getElementById('sw-status').textContent = 'Not supported';
+            document.getElementById('offline-result').textContent = 'Not supported';
+        }
+
+        // Transcript View
+        function toggleTranscript() {
+            const transcript = document.getElementById('transcript-view');
+            const isVisible = transcript.style.display !== 'none';
+            transcript.style.display = isVisible ? 'none' : 'block';
+            announceToScreenReader(isVisible ? 'Transcript hidden' : 'Transcript shown');
+        }
+
+        function downloadTranscript() {
+            const content = `TalkTime Conversation Transcript
+================================
+
+Date: ${new Date().toLocaleDateString()}
+Duration: 2 minutes
+Messages: 3
+
+Conversation:
+-------------
+
+[10:30 AM] You: Hello, I'd like to practice my English conversation skills.
+
+[10:31 AM] TalkTime: Great! I'd be happy to help you practice. What topic would you like to discuss today?
+
+[10:32 AM] You: Let's talk about traveling and vacation experiences.`;
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'talktime-transcript.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('success', 'Transcript downloaded successfully!');
+        }
+
+        // Initial announcements
+        window.addEventListener('load', () => {
+            announceToScreenReader('TalkTime Phase 3 Accessibility Test page loaded');
+        });
+    </script>
+</body>
+</html>

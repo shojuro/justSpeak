@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Long Responses</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #1a1a1a; color: white; }
+        button { padding: 10px 20px; margin: 10px; background: #0066ff; color: white; border: none; cursor: pointer; }
+        textarea { width: 100%; padding: 10px; margin: 10px 0; background: #333; color: white; border: 1px solid #666; }
+        .result { padding: 10px; margin: 10px 0; background: #333; border-radius: 5px; white-space: pre-wrap; }
+        .success { background: #22c55e; }
+        .info { background: #3b82f6; }
+    </style>
+</head>
+<body>
+    <h1>Test Long Responses & Inputs</h1>
+    
+    <h2>Test Long User Input (5000 chars max)</h2>
+    <textarea id="longInput" rows="10" placeholder="Type or paste a long message here...">I want to practice my English by having a detailed conversation about climate change. Can you explain the main causes of climate change, the effects it's having on our planet, and what individuals can do to help? I'm particularly interested in understanding the science behind greenhouse gases, how deforestation contributes to the problem, and what renewable energy options are available. Also, I'd like to know about international efforts like the Paris Agreement. Please provide a comprehensive explanation that will help me understand this complex topic while also giving me vocabulary and phrases I can use when discussing environmental issues in English. This is a really important topic for me because I want to be able to discuss it confidently in my English classes and with native speakers.</textarea>
+    <button onclick="testLongInput()">Send Long Message</button>
+    <div id="inputResult" class="result"></div>
+    
+    <h2>Test Response Length</h2>
+    <button onclick="testLongResponse()">Request Detailed Explanation</button>
+    <div id="responseResult" class="result"></div>
+    
+    <h2>Character Counters</h2>
+    <div id="counters" class="result info"></div>
+    
+    <script>
+        const API_URL = 'http://localhost:3000';
+        
+        // Update character counter
+        document.getElementById('longInput').addEventListener('input', updateCounters);
+        
+        function updateCounters() {
+            const input = document.getElementById('longInput').value;
+            const counters = document.getElementById('counters');
+            counters.innerHTML = `Input length: ${input.length} / 5000 characters\n` +
+                                `Words: ~${input.split(/\s+/).filter(w => w.length > 0).length}`;
+        }
+        
+        async function testLongInput() {
+            const message = document.getElementById('longInput').value;
+            const resultDiv = document.getElementById('inputResult');
+            
+            resultDiv.textContent = `Sending ${message.length} character message...`;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        context: [],
+                        mode: 'conversation'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const reply = data.reply || data.response;
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `✅ Success! Input accepted (${message.length} chars)\n\n` +
+                                        `AI Response (${reply.length} chars, ~${reply.split(/\s+/).length} words):\n\n${reply}`;
+                    
+                    // Test voice synthesis with long response
+                    const utterance = new SpeechSynthesisUtterance(reply);
+                    speechSynthesis.speak(utterance);
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Error: ${data.error}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Network Error: ${error.message}`;
+            }
+        }
+        
+        async function testLongResponse() {
+            const resultDiv = document.getElementById('responseResult');
+            resultDiv.textContent = 'Requesting detailed explanation...';
+            
+            const message = "Please provide a detailed explanation of the water cycle, including all stages like evaporation, condensation, precipitation, and collection. Include scientific terms, explain how temperature and pressure affect each stage, discuss the role of the sun and gravity, and give examples of how human activities can impact the water cycle. Make this explanation comprehensive enough for someone learning English to understand while also learning the science.";
+            
+            try {
+                const response = await fetch(`${API_URL}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        context: [],
+                        mode: 'learning'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const reply = data.reply || data.response;
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `✅ Received long response!\n\n` +
+                                        `Length: ${reply.length} characters (~${reply.split(/\s+/).length} words)\n` +
+                                        `Estimated tokens: ~${Math.ceil(reply.length / 4)}\n\n` +
+                                        `Response:\n${reply}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Error: ${data.error}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Network Error: ${error.message}`;
+            }
+        }
+        
+        // Initialize counters
+        updateCounters();
+    </script>
+</body>
+</html>

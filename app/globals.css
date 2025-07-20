@@ -2,12 +2,160 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  
+  .not-sr-only {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 142, 88, 0.1) 0%,
+      rgba(255, 142, 88, 0.2) 50%,
+      rgba(255, 142, 88, 0.1) 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s ease-in-out infinite;
+  }
+
+  @keyframes ripple {
+    0% {
+      transform: scale(0);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
+
+  .animate-ripple {
+    animation: ripple 0.6s ease-out;
+  }
+
+  @keyframes scale-check {
+    0% {
+      transform: scale(0) rotate(-45deg);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.2) rotate(-45deg);
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+    }
+  }
+
+  .animate-scale-check {
+    animation: scale-check 0.3s ease-out;
+  }
+}
+
 @layer base {
+  :root {
+    --deep-charcoal: 26 26 26;
+    --jet: 45 45 45;
+    --warm-coral: 255 142 88;
+    --warm-coral-light: 255 176 136;
+    --warm-coral-dark: 255 110 50;
+    --white: 255 255 255;
+  }
+
+  .light {
+    --deep-charcoal: 255 255 255;
+    --jet: 245 245 245;
+    --warm-coral: 255 110 50;
+    --warm-coral-light: 255 142 88;
+    --warm-coral-dark: 255 80 20;
+    --white: 26 26 26;
+  }
+
   html {
     @apply h-full;
   }
   
   body {
-    @apply h-full bg-deep-charcoal text-white;
+    @apply h-full bg-deep-charcoal text-white transition-colors duration-300;
+    /* Prevent pull-to-refresh on mobile */
+    overscroll-behavior-y: contain;
+    /* Prevent text selection on UI elements */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Update color classes to use CSS variables */
+  .bg-deep-charcoal { background-color: rgb(var(--deep-charcoal)); }
+  .bg-jet { background-color: rgb(var(--jet)); }
+  .bg-warm-coral { background-color: rgb(var(--warm-coral)); }
+  .bg-warm-coral-light { background-color: rgb(var(--warm-coral-light)); }
+  .bg-warm-coral-dark { background-color: rgb(var(--warm-coral-dark)); }
+  .text-deep-charcoal { color: rgb(var(--deep-charcoal)); }
+  .text-jet { color: rgb(var(--jet)); }
+  .text-warm-coral { color: rgb(var(--warm-coral)); }
+  .text-warm-coral-light { color: rgb(var(--warm-coral-light)); }
+  .text-warm-coral-dark { color: rgb(var(--warm-coral-dark)); }
+  .text-white { color: rgb(var(--white)); }
+  .border-warm-coral { border-color: rgb(var(--warm-coral)); }
+  .border-warm-coral-light { border-color: rgb(var(--warm-coral-light)); }
+}
+
+/* Mobile-specific styles */
+@layer components {
+  /* Allow text selection in messages */
+  .message-content {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* Improve tap targets on mobile */
+  @media (max-width: 768px) {
+    button {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
+  /* Prevent double-tap zoom on buttons */
+  button {
+    touch-action: manipulation;
+  }
+
+  /* Safe area insets for notched devices */
+  @supports (padding: max(0px)) {
+    .safe-top {
+      padding-top: max(1rem, env(safe-area-inset-top));
+    }
+    .safe-bottom {
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
   }
 }

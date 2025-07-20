@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser, updateUserStats } from '@/lib/auth-helpers'
 import { db } from '@/lib/supabase-db'
+import { logger } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     const session = sessions.find(s => s.id === sessionId)
     
     if (!session) {
-      console.warn('Session not found:', sessionId)
+      logger.warn('Session not found', { sessionId })
       return NextResponse.json(
         { error: 'Session not found' },
         { status: 404 }
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
       totalAiTime: updatedSession.ai_talk_time
     })
   } catch (error) {
-    console.error('Update session error:', error)
+    logger.error('Update session error', error as Error)
     return NextResponse.json(
       { error: 'Failed to update session' },
       { status: 500 }

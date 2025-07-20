@@ -1,4 +1,5 @@
 import { Assessment, Correction, SessionLog } from '@/types/assessment'
+import { logger } from './logger'
 
 export class AssessmentService {
   /**
@@ -84,7 +85,7 @@ export class AssessmentService {
 
       return assessment
     } catch (error) {
-      console.error('Error parsing assessment:', error)
+      logger.error('Error parsing assessment', error as Error)
       return null
     }
   }

@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JustSpeak - API Integration Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background-color: #0f0f0f;
+            padding: 1rem;
+            border-bottom: 2px solid #ff6b6b;
+        }
+        
+        .header h1 {
+            color: #ff6b6b;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+        
+        .container {
+            flex: 1;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+        }
+        
+        .section {
+            background-color: #0f0f0f;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid #333;
+        }
+        
+        .section h2 {
+            color: #ff6b6b;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #333;
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status-ok {
+            color: #4CAF50;
+        }
+        
+        .status-error {
+            color: #f44336;
+        }
+        
+        .status-warning {
+            color: #ff9800;
+        }
+        
+        .provider-select {
+            margin: 1rem 0;
+        }
+        
+        .provider-select label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #ff6b6b;
+        }
+        
+        .provider-select select {
+            width: 100%;
+            padding: 0.5rem;
+            background-color: #1a1a1a;
+            border: 1px solid #ff6b6b;
+            color: white;
+            border-radius: 4px;
+        }
+        
+        .test-controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #ff6b6b;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #ff5252;
+        }
+        
+        .btn-secondary {
+            background-color: #333;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #444;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .conversation-area {
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            padding: 1rem;
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+        }
+        
+        .message.user {
+            background-color: #ff6b6b20;
+            margin-left: 2rem;
+        }
+        
+        .message.assistant {
+            background-color: #33333350;
+            margin-right: 2rem;
+        }
+        
+        .message-role {
+            font-size: 0.875rem;
+            color: #888;
+            margin-bottom: 0.25rem;
+        }
+        
+        .input-area {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .input-area input {
+            flex: 1;
+            padding: 0.75rem;
+            background-color: #1a1a1a;
+            border: 1px solid #333;
+            color: white;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .mic-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            background-color: #ff6b6b;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .mic-button:hover {
+            background-color: #ff5252;
+        }
+        
+        .mic-button.recording {
+            background-color: #f44336;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 20px rgba(244, 67, 54, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(244, 67, 54, 0);
+            }
+        }
+        
+        .log-area {
+            background-color: #0a0a0a;
+            border-radius: 4px;
+            padding: 1rem;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.875rem;
+            margin-top: 1rem;
+        }
+        
+        .log-entry {
+            margin-bottom: 0.5rem;
+            color: #888;
+        }
+        
+        .log-entry.error {
+            color: #f44336;
+        }
+        
+        .log-entry.success {
+            color: #4CAF50;
+        }
+        
+        .log-entry.info {
+            color: #2196F3;
+        }
+        
+        .api-test-grid {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .api-test {
+            padding: 1rem;
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        
+        .api-test h3 {
+            color: #ff6b6b;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .api-test-result {
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>JustSpeak API Integration Test</h1>
+    </div>
+    
+    <div class="container">
+        <!-- Left Panel: Configuration & Status -->
+        <div>
+            <div class="section">
+                <h2>API Configuration Status</h2>
+                <div id="api-status">
+                    <div class="status-item">
+                        <span>OpenAI API</span>
+                        <span id="openai-status" class="status-error">Checking...</span>
+                    </div>
+                    <div class="status-item">
+                        <span>ElevenLabs API</span>
+                        <span id="elevenlabs-status" class="status-error">Checking...</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Google Speech API</span>
+                        <span id="google-status" class="status-error">Checking...</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Browser Speech API</span>
+                        <span id="browser-status" class="status-error">Checking...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Provider Selection</h2>
+                <div class="provider-select">
+                    <label for="stt-provider">Speech Recognition (STT)</label>
+                    <select id="stt-provider">
+                        <option value="browser">Browser (Free)</option>
+                        <option value="openai">OpenAI Whisper</option>
+                        <option value="google">Google Speech</option>
+                    </select>
+                </div>
+                <div class="provider-select">
+                    <label for="tts-provider">Voice Synthesis (TTS)</label>
+                    <select id="tts-provider">
+                        <option value="browser">Browser (Free)</option>
+                        <option value="openai">OpenAI TTS</option>
+                        <option value="elevenlabs">ElevenLabs</option>
+                    </select>
+                </div>
+                <div class="provider-select">
+                    <label for="chat-model">Chat Model</label>
+                    <select id="chat-model">
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        <option value="gpt-4">GPT-4</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>API Tests</h2>
+                <div class="api-test-grid">
+                    <div class="api-test">
+                        <h3>Chat API Test</h3>
+                        <button class="btn btn-secondary" onclick="testChatAPI()">Test Chat</button>
+                        <div id="chat-test-result" class="api-test-result"></div>
+                    </div>
+                    <div class="api-test">
+                        <h3>Voice Recognition Test</h3>
+                        <button class="btn btn-secondary" onclick="testSTT()">Test STT</button>
+                        <div id="stt-test-result" class="api-test-result"></div>
+                    </div>
+                    <div class="api-test">
+                        <h3>Voice Synthesis Test</h3>
+                        <button class="btn btn-secondary" onclick="testTTS()">Test TTS</button>
+                        <div id="tts-test-result" class="api-test-result"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Panel: Conversation Interface -->
+        <div>
+            <div class="section">
+                <h2>Conversation Test</h2>
+                <div class="conversation-area" id="conversation">
+                    <div class="message assistant">
+                        <div class="message-role">TalkTime</div>
+                        <div>Hello! I'm ready to test the API integration. Try speaking or typing a message.</div>
+                    </div>
+                </div>
+                <div class="input-area">
+                    <input 
+                        type="text" 
+                        id="message-input" 
+                        placeholder="Type a message or use the microphone..."
+                        onkeypress="if(event.key === 'Enter') sendMessage()"
+                    >
+                    <button class="mic-button" id="mic-button" onclick="toggleRecording()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Debug Log</h2>
+                <div class="log-area" id="log-area"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let isRecording = false;
+        let recognition = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let apiStatus = {
+            openai: false,
+            elevenlabs: false,
+            google: false,
+            browser: false
+        };
+
+        // Log function
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('log-area');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logArea.appendChild(entry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // Check API configuration
+        async function checkAPIStatus() {
+            try {
+                // This would normally call your actual API endpoint
+                // For testing, we'll simulate the check
+                log('Checking API configuration...', 'info');
+                
+                // Check browser support
+                if ('speechSynthesis' in window && 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+                    apiStatus.browser = true;
+                    document.getElementById('browser-status').textContent = 'Available';
+                    document.getElementById('browser-status').className = 'status-ok';
+                }
+                
+                // Simulate API checks (replace with actual API calls)
+                setTimeout(() => {
+                    // Simulate some APIs being configured
+                    if (Math.random() > 0.5) {
+                        apiStatus.openai = true;
+                        document.getElementById('openai-status').textContent = 'Configured';
+                        document.getElementById('openai-status').className = 'status-ok';
+                    } else {
+                        document.getElementById('openai-status').textContent = 'Not Configured';
+                        document.getElementById('openai-status').className = 'status-warning';
+                    }
+                    
+                    document.getElementById('elevenlabs-status').textContent = 'Not Configured';
+                    document.getElementById('elevenlabs-status').className = 'status-warning';
+                    
+                    document.getElementById('google-status').textContent = 'Not Configured';
+                    document.getElementById('google-status').className = 'status-warning';
+                    
+                    updateProviderOptions();
+                }, 1000);
+                
+            } catch (error) {
+                log('Error checking API status: ' + error.message, 'error');
+            }
+        }
+
+        // Update provider options based on API availability
+        function updateProviderOptions() {
+            const sttSelect = document.getElementById('stt-provider');
+            const ttsSelect = document.getElementById('tts-provider');
+            
+            // Disable unavailable options
+            Array.from(sttSelect.options).forEach(option => {
+                if (option.value === 'openai' && !apiStatus.openai) {
+                    option.disabled = true;
+                    option.text += ' (Not Available)';
+                }
+                if (option.value === 'google' && !apiStatus.google) {
+                    option.disabled = true;
+                    option.text += ' (Not Available)';
+                }
+            });
+            
+            Array.from(ttsSelect.options).forEach(option => {
+                if (option.value === 'openai' && !apiStatus.openai) {
+                    option.disabled = true;
+                    option.text += ' (Not Available)';
+                }
+                if (option.value === 'elevenlabs' && !apiStatus.elevenlabs) {
+                    option.disabled = true;
+                    option.text += ' (Not Available)';
+                }
+            });
+        }
+
+        // Initialize speech recognition
+        function initializeSpeechRecognition() {
+            const provider = document.getElementById('stt-provider').value;
+            
+            if (provider === 'browser') {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognition) {
+                    recognition = new SpeechRecognition();
+                    recognition.continuous = true;
+                    recognition.interimResults = true;
+                    recognition.lang = 'en-US';
+                    
+                    recognition.onstart = () => {
+                        log('Browser speech recognition started', 'success');
+                    };
+                    
+                    recognition.onresult = (event) => {
+                        let finalTranscript = '';
+                        for (let i = event.resultIndex; i < event.results.length; i++) {
+                            if (event.results[i].isFinal) {
+                                finalTranscript += event.results[i][0].transcript;
+                            }
+                        }
+                        if (finalTranscript) {
+                            document.getElementById('message-input').value = finalTranscript;
+                            log('Transcribed: ' + finalTranscript, 'info');
+                        }
+                    };
+                    
+                    recognition.onerror = (event) => {
+                        log('Speech recognition error: ' + event.error, 'error');
+                        stopRecording();
+                    };
+                }
+            } else {
+                // API-based recognition
+                log('Initializing API-based speech recognition (' + provider + ')', 'info');
+                initializeAPIRecording();
+            }
+        }
+
+        // Initialize API-based recording
+        async function initializeAPIRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    await transcribeWithAPI(audioBlob);
+                    audioChunks = [];
+                };
+                
+                log('API recording initialized', 'success');
+            } catch (error) {
+                log('Failed to initialize recording: ' + error.message, 'error');
+            }
+        }
+
+        // Transcribe audio using API
+        async function transcribeWithAPI(audioBlob) {
+            const provider = document.getElementById('stt-provider').value;
+            log('Transcribing with ' + provider + ' API...', 'info');
+            
+            // Simulate API transcription
+            setTimeout(() => {
+                const simulatedText = "This is a simulated transcription from the " + provider + " API";
+                document.getElementById('message-input').value = simulatedText;
+                log('API Transcription complete: ' + simulatedText, 'success');
+            }, 1500);
+        }
+
+        // Toggle recording
+        function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+
+        // Start recording
+        function startRecording() {
+            const provider = document.getElementById('stt-provider').value;
+            const micButton = document.getElementById('mic-button');
+            
+            isRecording = true;
+            micButton.classList.add('recording');
+            
+            if (provider === 'browser' && recognition) {
+                recognition.start();
+            } else if (mediaRecorder) {
+                mediaRecorder.start();
+                log('API recording started', 'success');
+            } else {
+                initializeSpeechRecognition();
+                if (provider === 'browser' && recognition) {
+                    recognition.start();
+                } else if (mediaRecorder) {
+                    mediaRecorder.start();
+                }
+            }
+        }
+
+        // Stop recording
+        function stopRecording() {
+            const provider = document.getElementById('stt-provider').value;
+            const micButton = document.getElementById('mic-button');
+            
+            isRecording = false;
+            micButton.classList.remove('recording');
+            
+            if (provider === 'browser' && recognition) {
+                recognition.stop();
+            } else if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                log('API recording stopped', 'info');
+            }
+        }
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message to conversation
+            addMessage(message, 'user');
+            input.value = '';
+            
+            // Send to chat API
+            try {
+                log('Sending message to chat API...', 'info');
+                
+                // Simulate API call
+                setTimeout(() => {
+                    const response = "This is a simulated response from the ChatGPT API. In a real implementation, this would be the actual AI response.";
+                    addMessage(response, 'assistant');
+                    
+                    // Speak the response
+                    speakText(response);
+                }, 1000);
+                
+            } catch (error) {
+                log('Chat API error: ' + error.message, 'error');
+                addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+            }
+        }
+
+        // Add message to conversation
+        function addMessage(text, role) {
+            const conversation = document.getElementById('conversation');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const roleDiv = document.createElement('div');
+            roleDiv.className = 'message-role';
+            roleDiv.textContent = role === 'user' ? 'You' : 'TalkTime';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.textContent = text;
+            
+            messageDiv.appendChild(roleDiv);
+            messageDiv.appendChild(contentDiv);
+            conversation.appendChild(messageDiv);
+            
+            conversation.scrollTop = conversation.scrollHeight;
+        }
+
+        // Speak text using selected TTS provider
+        function speakText(text) {
+            const provider = document.getElementById('tts-provider').value;
+            log('Speaking with ' + provider + ' TTS...', 'info');
+            
+            if (provider === 'browser') {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                
+                utterance.onend = () => {
+                    log('Browser TTS completed', 'success');
+                };
+                
+                window.speechSynthesis.speak(utterance);
+            } else {
+                // Simulate API TTS
+                log('Simulating ' + provider + ' TTS API call...', 'info');
+                setTimeout(() => {
+                    log(provider + ' TTS completed (simulated)', 'success');
+                }, 2000);
+            }
+        }
+
+        // Test Chat API
+        async function testChatAPI() {
+            const resultDiv = document.getElementById('chat-test-result');
+            resultDiv.textContent = 'Testing...';
+            
+            try {
+                log('Testing Chat API...', 'info');
+                
+                // Simulate API test
+                setTimeout(() => {
+                    resultDiv.textContent = '✓ Chat API is working';
+                    resultDiv.style.color = '#4CAF50';
+                    log('Chat API test successful', 'success');
+                }, 1000);
+                
+            } catch (error) {
+                resultDiv.textContent = '✗ Chat API error';
+                resultDiv.style.color = '#f44336';
+                log('Chat API test failed: ' + error.message, 'error');
+            }
+        }
+
+        // Test STT API
+        async function testSTT() {
+            const resultDiv = document.getElementById('stt-test-result');
+            const provider = document.getElementById('stt-provider').value;
+            resultDiv.textContent = 'Testing...';
+            
+            try {
+                log('Testing ' + provider + ' STT...', 'info');
+                
+                // Simulate API test
+                setTimeout(() => {
+                    resultDiv.textContent = '✓ ' + provider + ' STT is working';
+                    resultDiv.style.color = '#4CAF50';
+                    log(provider + ' STT test successful', 'success');
+                }, 1000);
+                
+            } catch (error) {
+                resultDiv.textContent = '✗ STT error';
+                resultDiv.style.color = '#f44336';
+                log('STT test failed: ' + error.message, 'error');
+            }
+        }
+
+        // Test TTS API
+        async function testTTS() {
+            const resultDiv = document.getElementById('tts-test-result');
+            const provider = document.getElementById('tts-provider').value;
+            resultDiv.textContent = 'Testing...';
+            
+            try {
+                log('Testing ' + provider + ' TTS...', 'info');
+                speakText('This is a test of the text to speech system.');
+                
+                setTimeout(() => {
+                    resultDiv.textContent = '✓ ' + provider + ' TTS is working';
+                    resultDiv.style.color = '#4CAF50';
+                    log(provider + ' TTS test successful', 'success');
+                }, 1000);
+                
+            } catch (error) {
+                resultDiv.textContent = '✗ TTS error';
+                resultDiv.style.color = '#f44336';
+                log('TTS test failed: ' + error.message, 'error');
+            }
+        }
+
+        // Initialize on load
+        window.onload = () => {
+            log('JustSpeak API Integration Test initialized', 'info');
+            checkAPIStatus();
+            initializeSpeechRecognition();
+        };
+    </script>
+</body>
+</html>

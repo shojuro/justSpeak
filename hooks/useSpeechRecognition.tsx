@@ -78,9 +78,25 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   }, [])
 
   const startListening = () => {
-    if (recognitionRef.current && !isListening) {
+    console.log('[SpeechRecognition] startListening called', {
+      hasRecognition: !!recognitionRef.current,
+      isListening,
+      error
+    })
+    
+    if (!recognitionRef.current) {
+      setError('Speech recognition not initialized. Please check browser compatibility.')
+      return
+    }
+    
+    if (!isListening) {
       setTranscript('')
-      recognitionRef.current.start()
+      try {
+        recognitionRef.current.start()
+      } catch (err) {
+        console.error('[SpeechRecognition] Failed to start:', err)
+        setError(`Failed to start speech recognition: ${err}`)
+      }
     }
   }
 

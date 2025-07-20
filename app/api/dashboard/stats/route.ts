@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/supabase-db'
+import { logger } from '@/lib/logger'
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
     try {
       user = await getAuthenticatedUser()
     } catch (error) {
-      console.warn('Auth check failed in dashboard stats:', error)
+      logger.debug('Auth check failed in dashboard stats', { error })
     }
     
     // If no user, return demo data with instructions
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
     
     return NextResponse.json(stats)
   } catch (error) {
-    console.error('Dashboard stats error:', error)
+    logger.error('Dashboard stats error', error as Error)
     
     // Fallback to demo data on any error
     const mockStats = {

@@ -2,20 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { AssessmentService } from '@/lib/assessment-service'
 import { getAuthenticatedUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/supabase-db'
+import { AppError, asyncHandler } from '@/lib/error-handler'
+import { messageValidation, userValidation, validateRequestBody } from '@/lib/validation'
+import { RedisRateLimiter } from '@/lib/redis'
+import { createRequestLogger, logger } from '@/lib/logger'
+import { withCors } from '@/lib/cors'
+import { sanitizeInput, validateMessageLength, sanitizeSessionId } from '@/lib/sanitization'
 
-// Security: Rate limiting store (in production, use Redis)
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
+import { RATE_LIMITS, MESSAGE_LIMITS, BLOCKED_TOPICS, OPENAI_CONFIG, SESSION_CONFIG } from '@/lib/constants'
 
-// Constants
-const RATE_LIMIT_MAX = 30 // requests per window
-const RATE_LIMIT_WINDOW = 60 * 1000 // 1 minute
-const MAX_MESSAGE_LENGTH = 1000
-const MAX_CONTEXT_MESSAGES = 10
-
-// Content safety keywords to filter
-const BLOCKED_TOPICS = [
-  'sexual', 'violence', 'harm', 'illegal', 'drugs', 'hate'
-]
+// Initialize rate limiter
+const rateLimiter = new RedisRateLimiter()
 
 interface Message {
   role: 'user' | 'assistant' | 'system'
@@ -30,43 +27,49 @@ interface ChatRequest {
   sessionId?: string
 }
 
-// Check rate limit
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const userLimit = rateLimitStore.get(ip)
+// Generate fingerprint for rate limiting (combines multiple factors)
+function generateFingerprint(req: NextRequest): string {
+  // Get real IP (considering proxies)
+  const forwardedFor = req.headers.get('x-forwarded-for')
+  const realIp = req.headers.get('x-real-ip')
+  const ip = forwardedFor?.split(',')[0] || realIp || 'unknown'
+  
+  // Additional fingerprinting factors
+  const userAgent = req.headers.get('user-agent') || 'unknown'
+  const acceptLanguage = req.headers.get('accept-language') || 'unknown'
+  const acceptEncoding = req.headers.get('accept-encoding') || 'unknown'
+  
+  // Create a composite fingerprint
+  const fingerprint = `${ip}:${userAgent}:${acceptLanguage}:${acceptEncoding}`
+  
+  // Hash the fingerprint for consistency and privacy
+  const crypto = require('crypto')
+  return crypto.createHash('sha256').update(fingerprint).digest('hex')
+}
 
-  if (!userLimit || now > userLimit.resetTime) {
-    rateLimitStore.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW })
-    return true
-  }
-
-  if (userLimit.count >= RATE_LIMIT_MAX) {
-    return false
-  }
-
-  userLimit.count++
-  return true
+// Check rate limit using Redis
+async function checkRateLimit(fingerprint: string): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
+  return rateLimiter.checkRateLimit(fingerprint, RATE_LIMITS.MAX_REQUESTS, RATE_LIMITS.WINDOW_MS)
 }
 
 // Validate and sanitize input
-function validateInput(message: string): { isValid: boolean; error?: string } {
-  if (!message || typeof message !== 'string') {
-    return { isValid: false, error: 'Message is required' }
-  }
-
-  if (message.length > MAX_MESSAGE_LENGTH) {
-    return { isValid: false, error: 'Message is too long' }
+function validateInput(message: string): { isValid: boolean; error?: string; sanitized?: string } {
+  // Use the new sanitization function
+  const validation = validateMessageLength(message, MESSAGE_LIMITS.MAX_MESSAGE_LENGTH)
+  
+  if (!validation.isValid) {
+    return { isValid: false, error: validation.error }
   }
 
   // Check for blocked content
-  const lowerMessage = message.toLowerCase()
+  const lowerMessage = validation.sanitized.toLowerCase()
   for (const topic of BLOCKED_TOPICS) {
     if (lowerMessage.includes(topic)) {
-      return { isValid: true } // We'll handle redirection in the prompt
+      return { isValid: true, sanitized: validation.sanitized } // We'll handle redirection in the prompt
     }
   }
 
-  return { isValid: true }
+  return { isValid: true, sanitized: validation.sanitized }
 }
 
 // Build learning prompt for grammar correction mode
@@ -190,34 +193,73 @@ Age Group: Adult
 }
 
 export async function POST(req: NextRequest) {
+  const logger = createRequestLogger(req)
+  
   try {
-    // Try to get authenticated user (optional for now)
+    logger.info('Chat API request received')
+    
+    // Check if authentication is required
+    const requireAuth = process.env.REQUIRE_AUTH === 'true' || process.env.NODE_ENV === 'production'
+    
+    // Try to get authenticated user
     let user = null
     try {
       user = await getAuthenticatedUser()
     } catch (error) {
-      console.warn('Auth check failed, continuing without user:', error)
+      logger.debug('Auth check failed', { error })
+      
+      // If auth is required and user is not authenticated, return 401
+      if (requireAuth) {
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          { status: 401 }
+        )
+      }
+    }
+    
+    // In production, always require authentication
+    if (requireAuth && !user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
     }
     
     // Check if API key is configured
     const apiKey = process.env.OPENAI_API_KEY
     
+    // Log API key status without exposing sensitive data
+    logger.debug('API Key check', {
+      exists: !!apiKey,
+      configured: !!apiKey && apiKey.length > 0
+    })
+    
     if (!apiKey) {
-      console.error('OpenAI API key not configured.')
+      logger.error('OpenAI API key not configured')
       return NextResponse.json(
         { error: 'AI service not configured. Please set OPENAI_API_KEY environment variable.' },
         { status: 503 }
       )
     }
 
-    // Get client IP for rate limiting
-    const ip = req.headers.get('x-forwarded-for') || 'unknown'
+    // Generate fingerprint for rate limiting
+    const fingerprint = generateFingerprint(req)
     
     // Check rate limit
-    if (!checkRateLimit(ip)) {
+    const rateLimit = await checkRateLimit(fingerprint)
+    if (!rateLimit.allowed) {
+      const retryAfter = Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
       return NextResponse.json(
         { error: 'Too many requests. Please wait a moment.' },
-        { status: 429 }
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': RATE_LIMITS.MAX_REQUESTS.toString(),
+            'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+            'X-RateLimit-Reset': new Date(rateLimit.resetTime).toISOString(),
+            'Retry-After': retryAfter.toString(),
+          }
+        }
       )
     }
 
@@ -225,7 +267,7 @@ export async function POST(req: NextRequest) {
     const body: ChatRequest = await req.json()
     const { message, context = [], ageGroup = 'adult', mode = 'conversation', sessionId } = body
 
-    // Validate input
+    // Validate and sanitize input
     const validation = validateInput(message)
     if (!validation.isValid) {
       return NextResponse.json(
@@ -233,9 +275,13 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+    
+    // Use sanitized message
+    const sanitizedMessage = validation.sanitized!
+    const sanitizedSessionId = sessionId ? sanitizeSessionId(sessionId) : undefined
 
     // Limit context to prevent token overflow
-    const limitedContext = context.slice(-MAX_CONTEXT_MESSAGES)
+    const limitedContext = context.slice(-SESSION_CONFIG.MAX_CONTEXT_MESSAGES)
 
     // Build messages array for OpenAI
     const messages: Message[] = [
@@ -246,30 +292,34 @@ export async function POST(req: NextRequest) {
       ...limitedContext,
       {
         role: 'user',
-        content: message
+        content: sanitizedMessage
       }
     ]
 
-    // Log the request for debugging
-    console.log('Chat API Request:', {
-      timestamp: new Date().toISOString(),
-      messageLength: message.length,
+    // Log the request metadata
+    logger.info('Chat API Request', {
+      messageLength: sanitizedMessage.length,
       contextSize: limitedContext.length,
-      model: 'gpt-3.5-turbo', // Changed to more reliable model
+      model: 'gpt-4o-mini',
       ageGroup,
       mode
     })
 
     // Call OpenAI API
     const requestBody = {
-      model: 'gpt-3.5-turbo', // Changed from gpt-4-turbo-preview for reliability
+      model: 'gpt-4o-mini', // Changed from gpt-4-turbo-preview for reliability
       messages,
       temperature: 0.8,
-      max_tokens: 400,
+      max_tokens: 1500, // Increased from 400 to allow longer responses
       presence_penalty: 0.6,
       frequency_penalty: 0.3
     }
     
+    // Log API usage without exposing key
+    logger.debug('Using OpenAI API', {
+      keyConfigured: true,
+      model: requestBody.model
+    })
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -282,10 +332,9 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('OpenAI API error:', {
+      logger.error('OpenAI API error', new Error(errorText), {
         status: response.status,
-        statusText: response.statusText,
-        error: errorText
+        statusText: response.statusText
       })
       
       // Parse error if possible
@@ -304,9 +353,8 @@ export async function POST(req: NextRequest) {
     const data = await response.json()
     const reply = data.choices[0]?.message?.content || "I didn't quite catch that. Could you tell me more?"
 
-    // Log conversation metadata (not content) for monitoring
-    console.log('Conversation:', {
-      timestamp: new Date().toISOString(),
+    // Log conversation metadata for monitoring
+    logger.info('Conversation processed', {
       ageGroup,
       mode,
       messageLength: message.length,
@@ -315,7 +363,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Database operations are optional for now
-    let sessionIdToReturn = sessionId || crypto.randomUUID()
+    let sessionIdToReturn = sanitizedSessionId || crypto.randomUUID()
     let assessmentData = null
     
     // Try to save to database if user is authenticated
@@ -323,10 +371,10 @@ export async function POST(req: NextRequest) {
       try {
         // Get or create session
         let session
-        if (sessionId) {
+        if (sanitizedSessionId) {
           // Verify session belongs to user
           const sessions = await db.sessions.findByUserId(user.id, 50)
-          session = sessions.find(s => s.id === sessionId && !s.end_time)
+          session = sessions.find(s => s.id === sanitizedSessionId && !s.end_time)
         }
         
         if (!session) {
@@ -346,7 +394,7 @@ export async function POST(req: NextRequest) {
         const userMessage = await db.messages.create({
           session_id: session.id,
           role: 'user',
-          content: message,
+          content: sanitizedMessage,
           timestamp: new Date().toISOString()
         })
         
@@ -362,7 +410,7 @@ export async function POST(req: NextRequest) {
         if (mode === 'learning') {
           const assessment = AssessmentService.parseAssessment(
             reply,
-            message,
+            sanitizedMessage,
             user.id,
             session.id,
             mode
@@ -389,7 +437,7 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (dbError) {
-        console.warn('Database operations failed, continuing without saving:', dbError)
+        logger.warn('Database operations failed, continuing without saving', { error: dbError })
       }
     }
     
@@ -397,7 +445,7 @@ export async function POST(req: NextRequest) {
     if (!assessmentData && mode === 'learning') {
       const assessment = AssessmentService.parseAssessment(
         reply,
-        message,
+        sanitizedMessage,
         'temp-user',
         sessionIdToReturn,
         mode
@@ -419,20 +467,56 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Chat API error:', error)
+    logger.error('Chat API error', error as Error)
     
-    // In development, return more detailed errors
+    // Never expose error details in production
     const isDevelopment = process.env.NODE_ENV === 'development'
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     
     return NextResponse.json(
       { 
-        error: isDevelopment 
-          ? `API Error: ${errorMessage}` 
-          : 'Something went wrong. Please try again.',
-        details: isDevelopment ? errorMessage : undefined
+        error: 'Something went wrong. Please try again.',
+        // Only include details in development
+        ...(isDevelopment && {
+          debug: {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            type: error instanceof Error ? error.constructor.name : typeof error
+          }
+        })
       },
       { status: 500 }
     )
   }
+}
+
+// Handle OPTIONS requests for CORS
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin') || ''
+  
+  // Define allowed origins
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'https://localhost:3000',
+    // Production domains
+    'https://justspeak.vercel.app',
+    'https://justspeak.app', // Add your custom domain here
+  ]
+  
+  // Check if origin is allowed
+  const isAllowed = process.env.NODE_ENV === 'development' 
+    ? allowedOrigins.includes(origin) || origin === 'null' // Allow file:// in dev only
+    : allowedOrigins.includes(origin)
+  
+  if (!isAllowed) {
+    return new NextResponse(null, { status: 403 })
+  }
+  
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
+    },
+  })
 }
