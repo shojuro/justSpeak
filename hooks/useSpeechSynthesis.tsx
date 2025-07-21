@@ -29,9 +29,11 @@ export function useSpeechSynthesis({
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       setIsSupported(true)
+      console.log('Speech synthesis supported, loading voices...')
       
       const loadVoices = () => {
         const availableVoices = window.speechSynthesis.getVoices()
+        console.log('Available voices:', availableVoices.length)
         setVoices(availableVoices)
         if (availableVoices.length > 0) {
           setIsReady(true)
@@ -55,16 +57,21 @@ export function useSpeechSynthesis({
       
       // Set ready after a delay if voices still haven't loaded
       setTimeout(() => {
-        if (!isReady && isSupported) {
-          console.log('Setting speech synthesis ready after timeout')
+        if (!isReady) {
+          console.log('Setting speech synthesis ready after timeout (forced)')
           setIsReady(true)
+          setIsSupported(true) // Force supported
         }
       }, 1000) // Increased to 1 second
+    } else {
+      console.error('Speech synthesis not available in window')
+      setIsSupported(false)
     }
-  }, [isReady, isSupported])
+  }, [])
 
   const speakWithBrowser = useCallback((text: string) => {
-    if (!isSupported || !window.speechSynthesis) {
+    // Check window.speechSynthesis directly instead of relying on state
+    if (!window.speechSynthesis) {
       console.error('Speech synthesis not supported', { isSupported, hasSynthesis: !!window.speechSynthesis })
       setError('Speech synthesis not available')
       return Promise.resolve()
@@ -120,7 +127,7 @@ export function useSpeechSynthesis({
         resolve()
       }
     })
-  }, [isSupported, voices, rate, pitch, volume])
+  }, [voices, rate, pitch, volume])
 
   const speakWithAPI = useCallback(async (text: string, useProvider: string) => {
     try {

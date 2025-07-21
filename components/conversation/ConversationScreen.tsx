@@ -136,15 +136,20 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       stopListening()
     }
     
-    // Add small delay to ensure speech synthesis is ready
+    // Add delay to ensure speech synthesis is ready
     setTimeout(async () => {
       try {
-        await speak(greeting)
+        // Check if speechSynthesis is available
+        if (window.speechSynthesis) {
+          await speak(greeting)
+        } else {
+          console.log('Speech synthesis not ready yet, skipping audio')
+        }
       } catch (err) {
         console.error('Failed to speak greeting:', err)
         // Continue anyway - text is still shown
       }
-    }, 500)
+    }, 1500) // Increased delay to ensure readiness
   }, [speak, isListening, stopListening])
 
   // Initialize providers and start session
@@ -407,7 +412,11 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       
       // Speak the response
       try {
-        await speak(data.reply || data.response)
+        if (window.speechSynthesis) {
+          await speak(data.reply || data.response)
+        } else {
+          console.log('Speech synthesis not available, showing text only')
+        }
       } catch (speechError) {
         console.error('Failed to speak AI response:', speechError)
         // Don't throw - the text response is still shown
