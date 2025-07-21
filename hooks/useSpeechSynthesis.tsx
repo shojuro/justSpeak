@@ -56,14 +56,16 @@ export function useSpeechSynthesis({
       // Set ready after a delay if voices still haven't loaded
       setTimeout(() => {
         if (!isReady && isSupported) {
+          console.log('Setting speech synthesis ready after timeout')
           setIsReady(true)
         }
-      }, 500)
+      }, 1000) // Increased to 1 second
     }
   }, [isReady, isSupported])
 
   const speakWithBrowser = useCallback((text: string) => {
     if (!isSupported || !window.speechSynthesis) {
+      console.error('Speech synthesis not supported', { isSupported, hasSynthesis: !!window.speechSynthesis })
       setError('Speech synthesis not available')
       return Promise.resolve()
     }

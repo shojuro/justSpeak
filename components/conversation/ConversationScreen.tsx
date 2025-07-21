@@ -136,7 +136,15 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       stopListening()
     }
     
-    await speak(greeting)
+    // Add small delay to ensure speech synthesis is ready
+    setTimeout(async () => {
+      try {
+        await speak(greeting)
+      } catch (err) {
+        console.error('Failed to speak greeting:', err)
+        // Continue anyway - text is still shown
+      }
+    }, 500)
   }, [speak, isListening, stopListening])
 
   // Initialize providers and start session
@@ -285,8 +293,8 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     // Show waiting indicator
     setIsWaitingForSilence(true)
     
-    // Simple 2-second silence detection
-    const silenceDelay = voiceControlMode === 'push-to-talk' ? 800 : 2000
+    // Longer silence detection for complete thoughts
+    const silenceDelay = voiceControlMode === 'push-to-talk' ? 1500 : 3500 // 1.5s for PTT, 3.5s for continuous
     
     console.log(`Transcript: "${transcript}" | Waiting ${silenceDelay}ms for silence`)
     
