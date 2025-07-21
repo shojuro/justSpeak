@@ -317,12 +317,13 @@ export async function POST(req: NextRequest) {
 
     // Call OpenAI API
     const requestBody = {
-      model: 'gpt-4o-mini', // Changed from gpt-4-turbo-preview for reliability
+      model: 'gpt-4o-mini', // Fast model for quick responses
       messages,
       temperature: 0.8,
-      max_tokens: 1500, // Increased from 400 to allow longer responses
+      max_tokens: 150, // Reduced for faster responses
       presence_penalty: 0.6,
-      frequency_penalty: 0.3
+      frequency_penalty: 0.3,
+      stream: false
     }
     
     // Log API usage without exposing key
@@ -333,14 +334,34 @@ export async function POST(req: NextRequest) {
     
     console.log('Calling OpenAI API with model:', requestBody.model)
     
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(requestBody)
-    })
+    // Add timeout to prevent hanging
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+    
+    let response: Response
+    try {
+      response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+      })
+      clearTimeout(timeout)
+    } catch (fetchError: any) {
+      clearTimeout(timeout)
+      if (fetchError.name === 'AbortError') {
+        console.error('OpenAI API request timed out after 10 seconds')
+        return NextResponse.json({
+          reply: "I'm having trouble connecting right now. Let me try again - what were you saying?",
+          conversationId: sessionIdToReturn,
+          error: 'Request timed out'
+        })
+      }
+      throw fetchError
+    }
 
     console.log('OpenAI API response status:', response.status)
 

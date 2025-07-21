@@ -85,13 +85,31 @@ export function useSpeechSynthesis({
       
       // Set voice if available
       if (voices.length > 0) {
-        // Try to find a male English voice (or the first English voice)
-        const maleVoice = voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('male'))
-        const englishVoice = voices.find(v => v.lang.startsWith('en'))
-        const selectedVoice = maleVoice || englishVoice
+        // Try to find a good English voice
+        const preferredVoices = [
+          'Google US English',
+          'Microsoft David - English (United States)',
+          'Microsoft Mark - English (United States)',
+          'Microsoft Zira - English (United States)',
+          'Alex',
+          'Samantha'
+        ]
+        
+        let selectedVoice = null
+        for (const preferred of preferredVoices) {
+          selectedVoice = voices.find(v => v.name.includes(preferred))
+          if (selectedVoice) break
+        }
+        
+        // Fallback to any English voice
+        if (!selectedVoice) {
+          selectedVoice = voices.find(v => v.lang.startsWith('en-US')) || 
+                         voices.find(v => v.lang.startsWith('en'))
+        }
         
         if (selectedVoice) {
           utterance.voice = selectedVoice
+          console.log('Selected voice:', selectedVoice.name)
         }
       }
 
