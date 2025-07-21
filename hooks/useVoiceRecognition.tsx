@@ -268,9 +268,14 @@ export function useVoiceRecognition({
 
   // Stop listening
   const stopListening = useCallback(() => {
+    console.log('Stopping voice recognition')
     if (provider === 'browser') {
       if (recognitionRef.current && isListening) {
-        recognitionRef.current.stop()
+        try {
+          recognitionRef.current.abort() // Use abort instead of stop for immediate termination
+        } catch (e) {
+          console.error('Error stopping recognition:', e)
+        }
       }
     } else {
       // Stop API-based recording
@@ -281,6 +286,7 @@ export function useVoiceRecognition({
     }
     // Clear transcript when stopping
     setTranscript('')
+    setIsListening(false)
   }, [provider, isListening])
   
   // Clear transcript manually

@@ -47,6 +47,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
 
   // Track if AI is currently speaking (more robust than isSpeaking)
   const [isAISpeaking, setIsAISpeaking] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(true)
   
   // Speech hooks with API support
   const { 
@@ -91,6 +92,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   
   // Wrapped speak function that manages AI speaking state
   const speak = useCallback(async (text: string) => {
+    console.log('AI speaking:', text.substring(0, 50) + '...')
     setIsAISpeaking(true)
     // Force stop any listening
     if (isListening) {
@@ -100,10 +102,11 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     try {
       await _speak(text)
     } finally {
-      // Add delay before allowing microphone to restart
+      // Add longer delay before allowing microphone to restart
       setTimeout(() => {
+        console.log('AI finished speaking, waiting before enabling mic')
         setIsAISpeaking(false)
-      }, 500)
+      }, 1500) // Increased from 500ms to 1.5s
     }
   }, [_speak, isListening, stopListening])
 
@@ -198,17 +201,17 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       const savedMode = localStorage.getItem('voice_control_mode') as 'continuous' | 'push-to-talk'
       if (savedMode) {
         setVoiceControlMode(savedMode)
+      } else {
+        // Default to push-to-talk to prevent feedback
+        setVoiceControlMode('push-to-talk')
+        localStorage.setItem('voice_control_mode', 'push-to-talk')
       }
       
-      // Only auto-start listening in continuous mode AFTER greeting is done
-      if (!savedMode || savedMode === 'continuous') {
-        setTimeout(() => {
-          if (!isAISpeaking) {
-            console.log('Starting microphone after greeting')
-            startListening()
-          }
-        }, 1000)
-      }
+      // Mark initialization complete after greeting
+      setTimeout(() => {
+        setIsInitializing(false)
+        console.log('Initialization complete, voice control mode:', savedMode || 'push-to-talk')
+      }, 3000) // Wait 3 seconds after greeting before allowing any mic
     }, 1000)
 
     return () => {
@@ -272,7 +275,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
 
   // Simple silence-based transcript processing
   useEffect(() => {
-    if (!transcript || processingRef.current || isAISpeaking) return
+    if (!transcript || processingRef.current || isAISpeaking || isInitializing) return
     
     // Clear existing timer
     if (silenceTimerRef.current) {
@@ -292,12 +295,23 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       
       // Process if we have content and it's different from last processed
       if (finalTranscript && finalTranscript !== lastTranscriptRef.current) {
-        // Check if this is the AI's own speech (greeting)
+        // Check if this is the AI's own speech (greeting or common AI phrases)
         const lowerContent = finalTranscript.toLowerCase()
-        if (lowerContent.includes("hello i'm talktime") || 
-            lowerContent.includes("hello i am talktime") ||
-            lowerContent.includes("friendly english conversation partner")) {
-          console.log('Ignoring AI\'s own speech')
+        const aiPhrases = [
+          "hello i'm talktime",
+          "hello i am talktime",
+          "friendly english conversation partner",
+          "what would you like to talk about",
+          "how can i help you",
+          "i'm here to help",
+          "let's practice english",
+          "feel free to ask"
+        ]
+        
+        if (aiPhrases.some(phrase => lowerContent.includes(phrase))) {
+          console.log('Ignoring AI\'s own speech:', finalTranscript.substring(0, 50))
+          clearTranscript()
+          processingRef.current = false
           return
         }
         
@@ -327,7 +341,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       }
       setIsWaitingForSilence(false)
     }
-  }, [transcript, isAISpeaking, voiceControlMode, stopListening])
+  }, [transcript, isAISpeaking, isInitializing, voiceControlMode, stopListening, clearTranscript])
 
   const addUserMessage = (content: string) => {
     const message: Message = {
@@ -423,14 +437,14 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       setIsAIThinking(false)
       processingRef.current = false
       
-      // Only restart listening in continuous mode
-      if (voiceControlMode === 'continuous') {
+      // Only restart listening in continuous mode AND not during initialization
+      if (voiceControlMode === 'continuous' && !isInitializing) {
         setTimeout(() => {
           if (!isAISpeaking) {
             console.log('Restarting microphone after AI response')
             startListening()
           }
-        }, 1000) // 1 second delay after AI finishes
+        }, 2000) // 2 second delay after AI finishes
       }
     }
   }
@@ -508,8 +522,17 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         mode={mode}
       />
       
+      {/* Show initialization indicator */}
+      {isInitializing && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-warm-coral/20 px-6 py-3 rounded-full">
+          <p className="text-sm text-warm-coral animate-pulse">
+            Initializing... Please wait
+          </p>
+        </div>
+      )}
+      
       {/* Show waiting indicator */}
-      {isWaitingForSilence && isListening && (
+      {isWaitingForSilence && isListening && !isInitializing && (
         <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 bg-dark-gray/90 px-4 py-2 rounded-full">
           <p className="text-sm text-warm-coral animate-pulse">
             Listening... (waiting for you to finish)
