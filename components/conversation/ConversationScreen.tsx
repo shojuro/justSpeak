@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition'
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis'
 import { checkAPIConfiguration, getBestProvider, getSavedProvider } from '@/lib/api-config-client'
+import { isLikelyComplete, calculateSilenceDelay } from '@/lib/sentence-detection'
 import MessageList, { Message } from './MessageList'
 import SessionControls from './SessionControls'
 import ConversationHeader from './ConversationHeader'
@@ -32,6 +33,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [showDebugPanel, setShowDebugPanel] = useState(true) // Show debug panel by default
   const [voiceControlMode, setVoiceControlMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
   const [voiceSensitivity, setVoiceSensitivity] = useState(3)
+  const [isWaitingForSilence, setIsWaitingForSilence] = useState(false)
   
   // Refs for tracking time
   const talkStartRef = useRef<Date | null>(null)
@@ -283,18 +285,28 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       clearTimeout(silenceTimerRef.current)
     }
     
-    // Set up silence detection timer
-    const silenceDelay = voiceControlMode === 'push-to-talk' ? 500 : 1500 // Shorter delay for push-to-talk
+    // Show waiting indicator
+    setIsWaitingForSilence(true)
+    
+    // Check if the current transcript seems complete
+    const currentTranscript = accumulatedTranscriptRef.current.trim()
+    const seemsComplete = isLikelyComplete(currentTranscript)
+    
+    // Calculate dynamic delay based on content
+    const baseDelay = voiceControlMode === 'push-to-talk' ? 1000 : 3000
+    const silenceDelay = calculateSilenceDelay(currentTranscript, baseDelay, seemsComplete)
+    
+    console.log(`Transcript: "${currentTranscript}" | Complete: ${seemsComplete} | Delay: ${silenceDelay}ms`)
     
     silenceTimerRef.current = setTimeout(() => {
-      // Check if we have new content since last final transcript
-      const currentTranscript = accumulatedTranscriptRef.current.trim()
+      // Re-check the transcript in case it changed
+      const finalTranscript = accumulatedTranscriptRef.current.trim()
       const lastFinal = lastFinalTranscriptRef.current.trim()
       
       // Only process if we have new content
-      if (currentTranscript && currentTranscript !== lastFinal && currentTranscript.length > lastFinal.length) {
+      if (finalTranscript && finalTranscript !== lastFinal && finalTranscript.length > lastFinal.length) {
         // Extract only the new part
-        const newContent = lastFinal ? currentTranscript.substring(lastFinal.length).trim() : currentTranscript
+        const newContent = lastFinal ? finalTranscript.substring(lastFinal.length).trim() : finalTranscript
         
         if (newContent && newContent.length > 0) {
           // Check if this is the AI's own speech (greeting)
@@ -327,12 +339,16 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
           sendMessage(sanitizedTranscript)
         }
       }
+      
+      // Hide waiting indicator
+      setIsWaitingForSilence(false)
     }, silenceDelay)
     
     return () => {
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current)
       }
+      setIsWaitingForSilence(false)
     }
   }, [transcript, isAISpeaking, voiceControlMode, stopListening])
 
@@ -518,6 +534,15 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         isAIThinking={isAIThinking}
         mode={mode}
       />
+      
+      {/* Show waiting indicator */}
+      {isWaitingForSilence && isListening && (
+        <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 bg-dark-gray/90 px-4 py-2 rounded-full">
+          <p className="text-sm text-warm-coral animate-pulse">
+            Listening... (waiting for you to finish)
+          </p>
+        </div>
+      )}
       
       <SessionControls
         mode={mode}
