@@ -203,28 +203,20 @@ export async function POST(req: NextRequest) {
     // Check if authentication is required (trim whitespace)
     const requireAuth = process.env.REQUIRE_AUTH?.trim() === 'true'
     
-    // Try to get authenticated user
+    // Try to get authenticated user (optional for MVP)
     let user = null
-    try {
-      user = await getAuthenticatedUser()
-    } catch (error) {
-      logger.debug('Auth check failed', { error })
-      
-      // If auth is required and user is not authenticated, return 401
-      if (requireAuth) {
+    if (requireAuth) {
+      try {
+        user = await getAuthenticatedUser()
+      } catch (error) {
+        logger.debug('Auth check failed', { error })
+        
+        // Only enforce auth if explicitly required
         return NextResponse.json(
           { error: 'Authentication required' },
           { status: 401 }
         )
       }
-    }
-    
-    // In production, always require authentication
-    if (requireAuth && !user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
     }
     
     // Check if API key is configured and trim any whitespace

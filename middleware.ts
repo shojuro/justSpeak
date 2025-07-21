@@ -4,14 +4,14 @@ import type { NextRequest } from 'next/server'
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname
   
-  // For MVP, redirect all auth pages to practice
-  const authPaths = ['/auth', '/settings', '/onboarding', '/dashboard']
+  // For MVP, redirect auth pages to home page
+  const authPaths = ['/auth', '/settings', '/onboarding']
   
   if (authPaths.some(path => pathname.startsWith(path))) {
-    return NextResponse.redirect(new URL('/practice', req.url))
+    return NextResponse.redirect(new URL('/', req.url))
   }
   
-  // Let everything else through
+  // Let everything else through, including /dashboard and API routes
   return NextResponse.next()
 }
 
