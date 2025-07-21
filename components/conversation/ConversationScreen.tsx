@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition'
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis'
 import { checkAPIConfiguration, getBestProvider, getSavedProvider } from '@/lib/api-config-client'
-import { isLikelyComplete, calculateSilenceDelay } from '@/lib/sentence-detection'
 import MessageList, { Message } from './MessageList'
 import SessionControls from './SessionControls'
 import ConversationHeader from './ConversationHeader'
@@ -41,10 +40,9 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const speakingStartRef = useRef<Date | null>(null)
   const processingRef = useRef<boolean>(false)
   
-  // Debouncing refs for speech recognition
+  // Speech recognition refs
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const accumulatedTranscriptRef = useRef<string>('')
-  const lastFinalTranscriptRef = useRef<string>('')
+  const lastTranscriptRef = useRef<string>('')
   const greetingSentRef = useRef<boolean>(false)
 
   // Track if AI is currently speaking (more robust than isSpeaking)
@@ -56,6 +54,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     isListening, 
     startListening: _startListening, 
     stopListening, 
+    clearTranscript,
     error: speechError 
   } = useVoiceRecognition({
     provider: voiceProvider,
@@ -68,11 +67,14 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   // Wrapped startListening that checks if AI is speaking
   const startListening = useCallback(() => {
     if (!isAISpeaking) {
+      // Reset transcript tracking
+      lastTranscriptRef.current = ''
+      clearTranscript()
       _startListening()
     } else {
       console.log('Cannot start listening - AI is speaking')
     }
-  }, [_startListening, isAISpeaking])
+  }, [_startListening, isAISpeaking, clearTranscript])
   
   const { 
     speak: _speak, 
@@ -226,11 +228,6 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       if (e.code === 'Space' && !e.repeat && !isListening && !isAISpeaking) {
         e.preventDefault()
         console.log('Push-to-talk: Starting listening')
-        
-        // Reset transcript tracking
-        accumulatedTranscriptRef.current = ''
-        lastFinalTranscriptRef.current = ''
-        
         startListening()
       }
     }
@@ -273,12 +270,9 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     }
   }, [isAISpeaking, isListening, stopListening])
 
-  // Process transcript changes with debouncing
+  // Simple silence-based transcript processing
   useEffect(() => {
     if (!transcript || processingRef.current || isAISpeaking) return
-    
-    // Update accumulated transcript
-    accumulatedTranscriptRef.current = transcript
     
     // Clear existing timer
     if (silenceTimerRef.current) {
@@ -288,56 +282,39 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     // Show waiting indicator
     setIsWaitingForSilence(true)
     
-    // Check if the current transcript seems complete
-    const currentTranscript = accumulatedTranscriptRef.current.trim()
-    const seemsComplete = isLikelyComplete(currentTranscript)
+    // Simple 2-second silence detection
+    const silenceDelay = voiceControlMode === 'push-to-talk' ? 800 : 2000
     
-    // Calculate dynamic delay based on content
-    const baseDelay = voiceControlMode === 'push-to-talk' ? 1000 : 3000
-    const silenceDelay = calculateSilenceDelay(currentTranscript, baseDelay, seemsComplete)
-    
-    console.log(`Transcript: "${currentTranscript}" | Complete: ${seemsComplete} | Delay: ${silenceDelay}ms`)
+    console.log(`Transcript: "${transcript}" | Waiting ${silenceDelay}ms for silence`)
     
     silenceTimerRef.current = setTimeout(() => {
-      // Re-check the transcript in case it changed
-      const finalTranscript = accumulatedTranscriptRef.current.trim()
-      const lastFinal = lastFinalTranscriptRef.current.trim()
+      const finalTranscript = transcript.trim()
       
-      // Only process if we have new content
-      if (finalTranscript && finalTranscript !== lastFinal && finalTranscript.length > lastFinal.length) {
-        // Extract only the new part
-        const newContent = lastFinal ? finalTranscript.substring(lastFinal.length).trim() : finalTranscript
-        
-        if (newContent && newContent.length > 0) {
-          // Check if this is the AI's own speech (greeting)
-          const lowerContent = newContent.toLowerCase()
-          if (lowerContent.includes("hello i'm talktime") || 
-              lowerContent.includes("hello i am talktime") ||
-              lowerContent.includes("friendly english conversation partner")) {
-            console.log('Ignoring AI\'s own speech')
-            lastFinalTranscriptRef.current = currentTranscript
-            accumulatedTranscriptRef.current = ''
-            return
-          }
-          
-          console.log('Processing complete sentence:', newContent)
-          processingRef.current = true
-          lastFinalTranscriptRef.current = currentTranscript
-          
-          // Stop listening immediately
-          stopListening()
-          
-          // Clear accumulated transcript
-          accumulatedTranscriptRef.current = ''
-          
-          // Sanitize and send
-          const sanitizedTranscript = newContent
-            .replace(/[<>]/g, '')
-            .substring(0, 5000)
-          
-          addUserMessage(sanitizedTranscript)
-          sendMessage(sanitizedTranscript)
+      // Process if we have content and it's different from last processed
+      if (finalTranscript && finalTranscript !== lastTranscriptRef.current) {
+        // Check if this is the AI's own speech (greeting)
+        const lowerContent = finalTranscript.toLowerCase()
+        if (lowerContent.includes("hello i'm talktime") || 
+            lowerContent.includes("hello i am talktime") ||
+            lowerContent.includes("friendly english conversation partner")) {
+          console.log('Ignoring AI\'s own speech')
+          return
         }
+        
+        console.log('Processing user speech:', finalTranscript)
+        processingRef.current = true
+        lastTranscriptRef.current = finalTranscript
+        
+        // Stop listening and clear transcript
+        stopListening()
+        
+        // Sanitize and send
+        const sanitizedTranscript = finalTranscript
+          .replace(/[<>]/g, '')
+          .substring(0, 5000)
+        
+        addUserMessage(sanitizedTranscript)
+        sendMessage(sanitizedTranscript)
       }
       
       // Hide waiting indicator
@@ -449,11 +426,11 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       // Only restart listening in continuous mode
       if (voiceControlMode === 'continuous') {
         setTimeout(() => {
-          if (!isListening && !isAISpeaking) {
-            console.log('Restarting microphone after AI response (continuous mode)')
+          if (!isAISpeaking) {
+            console.log('Restarting microphone after AI response')
             startListening()
           }
-        }, 1500) // 1.5 second delay to ensure speech synthesis has fully finished
+        }, 1000) // 1 second delay after AI finishes
       }
     }
   }
@@ -462,10 +439,6 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     if (isListening) {
       stopListening()
     } else {
-      // Reset transcript tracking when starting new session
-      accumulatedTranscriptRef.current = ''
-      lastFinalTranscriptRef.current = ''
-      
       // Check microphone permission first
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true })

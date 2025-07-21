@@ -47,29 +47,35 @@ export function useVoiceRecognition({
         }
 
         recognition.onresult = (event: any) => {
-          let currentTranscript = ''
-          let hasFinalResult = false
+          let interimTranscript = ''
+          let finalTranscript = ''
 
-          // Build the complete transcript from all results
-          for (let i = 0; i < event.results.length; i++) {
+          // Only process NEW results starting from resultIndex
+          for (let i = event.resultIndex; i < event.results.length; i++) {
             const result = event.results[i]
-            currentTranscript += result[0].transcript
+            const transcript = result[0].transcript
             
             if (result.isFinal) {
-              hasFinalResult = true
+              finalTranscript += transcript + ' '
+            } else {
+              interimTranscript += transcript
             }
           }
 
-          // Always update the transcript with the complete text
-          setTranscript(currentTranscript.trim())
+          // For continuous recognition, we only want the current utterance
+          const currentTranscript = (finalTranscript + interimTranscript).trim()
           
-          if (onTranscript) {
-            onTranscript(currentTranscript.trim())
-          }
-          
-          // Only call final transcript callback when we have a final result
-          if (hasFinalResult && onFinalTranscript) {
-            onFinalTranscript(currentTranscript.trim())
+          if (currentTranscript) {
+            setTranscript(currentTranscript)
+            
+            if (onTranscript) {
+              onTranscript(currentTranscript)
+            }
+            
+            // Call final transcript callback if we have final results
+            if (finalTranscript && onFinalTranscript) {
+              onFinalTranscript(finalTranscript.trim())
+            }
           }
         }
 
@@ -273,7 +279,14 @@ export function useVoiceRecognition({
         setIsListening(false)
       }
     }
+    // Clear transcript when stopping
+    setTranscript('')
   }, [provider, isListening])
+  
+  // Clear transcript manually
+  const clearTranscript = useCallback(() => {
+    setTranscript('')
+  }, [])
 
   // Toggle listening
   const toggleListening = useCallback(() => {
