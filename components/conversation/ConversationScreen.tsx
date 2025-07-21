@@ -43,6 +43,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const accumulatedTranscriptRef = useRef<string>('')
   const lastFinalTranscriptRef = useRef<string>('')
+  const greetingSentRef = useRef<boolean>(false)
 
   // Track if AI is currently speaking (more robust than isSpeaking)
   const [isAISpeaking, setIsAISpeaking] = useState(false)
@@ -104,6 +105,14 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
 
   // Define sendInitialGreeting before using it in useEffect
   const sendInitialGreeting = useCallback(async () => {
+    // Prevent multiple greetings
+    if (greetingSentRef.current) {
+      console.log('Greeting already sent, skipping')
+      return
+    }
+    
+    greetingSentRef.current = true
+    
     const greeting = "Hello! I'm TalkTime, your friendly English conversation partner. What would you like to talk about today?"
     
     const message: Message = {
@@ -178,22 +187,25 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     }, 1000)
 
     // Send initial greeting after a short delay
-    const greetingTimer = setTimeout(() => {
-      sendInitialGreeting()
+    const greetingTimer = setTimeout(async () => {
+      await sendInitialGreeting()
+      
+      // Load saved voice control mode AFTER greeting
+      const savedMode = localStorage.getItem('voice_control_mode') as 'continuous' | 'push-to-talk'
+      if (savedMode) {
+        setVoiceControlMode(savedMode)
+      }
+      
+      // Only auto-start listening in continuous mode AFTER greeting is done
+      if (!savedMode || savedMode === 'continuous') {
+        setTimeout(() => {
+          if (!isAISpeaking) {
+            console.log('Starting microphone after greeting')
+            startListening()
+          }
+        }, 1000)
+      }
     }, 1000)
-    
-    // Load saved voice control mode
-    const savedMode = localStorage.getItem('voice_control_mode') as 'continuous' | 'push-to-talk'
-    if (savedMode) {
-      setVoiceControlMode(savedMode)
-    }
-    
-    // Only auto-start listening in continuous mode
-    if (!savedMode || savedMode === 'continuous') {
-      setTimeout(() => {
-        startListening()
-      }, 2000)
-    }
 
     return () => {
       if (talkTimeIntervalRef.current) {
@@ -201,7 +213,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       }
       clearTimeout(greetingTimer)
     }
-  }, [sendInitialGreeting, startListening])
+  }, []) // Remove dependencies to prevent re-runs
 
   // Keyboard event handlers for push-to-talk
   useEffect(() => {
@@ -285,6 +297,17 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         const newContent = lastFinal ? currentTranscript.substring(lastFinal.length).trim() : currentTranscript
         
         if (newContent && newContent.length > 0) {
+          // Check if this is the AI's own speech (greeting)
+          const lowerContent = newContent.toLowerCase()
+          if (lowerContent.includes("hello i'm talktime") || 
+              lowerContent.includes("hello i am talktime") ||
+              lowerContent.includes("friendly english conversation partner")) {
+            console.log('Ignoring AI\'s own speech')
+            lastFinalTranscriptRef.current = currentTranscript
+            accumulatedTranscriptRef.current = ''
+            return
+          }
+          
           console.log('Processing complete sentence:', newContent)
           processingRef.current = true
           lastFinalTranscriptRef.current = currentTranscript
@@ -324,6 +347,13 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   }
 
   const sendMessage = async (userMessage: string) => {
+    // Prevent sending if AI is already thinking or speaking
+    if (isAIThinking || isAISpeaking) {
+      console.log('Skipping message - AI is busy')
+      processingRef.current = false
+      return
+    }
+    
     setIsAIThinking(true)
     
     try {
