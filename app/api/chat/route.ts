@@ -366,6 +366,16 @@ export async function POST(req: NextRequest) {
       try {
         const errorData = JSON.parse(errorText)
         errorMessage = errorData.error?.message || errorMessage
+        
+        // If it's an invalid API key error, provide helpful message
+        if (errorMessage.includes('Incorrect API key') || errorMessage.includes('invalid_api_key')) {
+          console.error('Invalid OpenAI API key detected')
+          return NextResponse.json({
+            reply: "I'm having trouble connecting to the AI service. Please check that the OpenAI API key is valid. In the meantime, let's continue our conversation!",
+            conversationId: sessionIdToReturn,
+            error: 'Invalid API key - please update in Vercel environment variables'
+          })
+        }
       } catch (e) {
         // If not JSON, use the text
         errorMessage = errorText || errorMessage
