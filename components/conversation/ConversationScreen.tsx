@@ -44,11 +44,14 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const accumulatedTranscriptRef = useRef<string>('')
   const lastFinalTranscriptRef = useRef<string>('')
 
+  // Track if AI is currently speaking (more robust than isSpeaking)
+  const [isAISpeaking, setIsAISpeaking] = useState(false)
+  
   // Speech hooks with API support
   const { 
     transcript, 
     isListening, 
-    startListening, 
+    startListening: _startListening, 
     stopListening, 
     error: speechError 
   } = useVoiceRecognition({
@@ -59,8 +62,17 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     onFinalTranscript: (text) => logger.debug('Final transcript', { text })
   })
   
+  // Wrapped startListening that checks if AI is speaking
+  const startListening = useCallback(() => {
+    if (!isAISpeaking) {
+      _startListening()
+    } else {
+      console.log('Cannot start listening - AI is speaking')
+    }
+  }, [_startListening, isAISpeaking])
+  
   const { 
-    speak, 
+    speak: _speak, 
     isSpeaking, 
     stop: stopSpeaking,
     error: synthError 
@@ -71,6 +83,24 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     pitch: 1.0,
     volume: 1.0
   })
+  
+  // Wrapped speak function that manages AI speaking state
+  const speak = useCallback(async (text: string) => {
+    setIsAISpeaking(true)
+    // Force stop any listening
+    if (isListening) {
+      stopListening()
+    }
+    
+    try {
+      await _speak(text)
+    } finally {
+      // Add delay before allowing microphone to restart
+      setTimeout(() => {
+        setIsAISpeaking(false)
+      }, 500)
+    }
+  }, [_speak, isListening, stopListening])
 
   // Define sendInitialGreeting before using it in useEffect
   const sendInitialGreeting = useCallback(async () => {
@@ -84,8 +114,14 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     }
     
     setMessages([message])
+    
+    // Ensure microphone is stopped before speaking
+    if (isListening) {
+      stopListening()
+    }
+    
     await speak(greeting)
-  }, [speak])
+  }, [speak, isListening, stopListening])
 
   // Initialize providers and start session
   useEffect(() => {
@@ -173,7 +209,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Use spacebar for push-to-talk
-      if (e.code === 'Space' && !e.repeat && !isListening && !isSpeaking) {
+      if (e.code === 'Space' && !e.repeat && !isListening && !isAISpeaking) {
         e.preventDefault()
         console.log('Push-to-talk: Starting listening')
         
@@ -201,7 +237,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [voiceControlMode, isListening, isSpeaking, startListening, stopListening])
+  }, [voiceControlMode, isListening, isAISpeaking, startListening, stopListening])
 
   // Track user speaking time
   useEffect(() => {
@@ -217,15 +253,15 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
 
   // Stop listening when AI is speaking (echo cancellation)
   useEffect(() => {
-    if (isSpeaking && isListening) {
+    if (isAISpeaking && isListening) {
       console.log('AI is speaking, stopping microphone to prevent feedback')
       stopListening()
     }
-  }, [isSpeaking, isListening, stopListening])
+  }, [isAISpeaking, isListening, stopListening])
 
   // Process transcript changes with debouncing
   useEffect(() => {
-    if (!transcript || processingRef.current || isSpeaking) return
+    if (!transcript || processingRef.current || isAISpeaking) return
     
     // Update accumulated transcript
     accumulatedTranscriptRef.current = transcript
@@ -275,7 +311,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         clearTimeout(silenceTimerRef.current)
       }
     }
-  }, [transcript, isSpeaking, voiceControlMode, stopListening])
+  }, [transcript, isAISpeaking, voiceControlMode, stopListening])
 
   const addUserMessage = (content: string) => {
     const message: Message = {
@@ -367,11 +403,11 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       // Only restart listening in continuous mode
       if (voiceControlMode === 'continuous') {
         setTimeout(() => {
-          if (!isListening && !isSpeaking) {
+          if (!isListening && !isAISpeaking) {
             console.log('Restarting microphone after AI response (continuous mode)')
             startListening()
           }
-        }, 1000) // 1 second delay to ensure speech synthesis has finished
+        }, 1500) // 1.5 second delay to ensure speech synthesis has fully finished
       }
     }
   }
@@ -456,7 +492,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       <SessionControls
         mode={mode}
         isListening={isListening}
-        isSpeaking={isSpeaking}
+        isSpeaking={isAISpeaking}
         speechError={speechError || synthError}
         userTime={Math.floor(userSpeakingTime)}
         voiceControlMode={voiceControlMode}
