@@ -200,8 +200,8 @@ export async function POST(req: NextRequest) {
     logger.info('Chat API request received')
     console.log('Chat API called at:', new Date().toISOString())
     
-    // Check if authentication is required
-    const requireAuth = process.env.REQUIRE_AUTH === 'true'
+    // Check if authentication is required (trim whitespace)
+    const requireAuth = process.env.REQUIRE_AUTH?.trim() === 'true'
     
     // Try to get authenticated user
     let user = null
@@ -227,8 +227,8 @@ export async function POST(req: NextRequest) {
       )
     }
     
-    // Check if API key is configured
-    const apiKey = process.env.OPENAI_API_KEY
+    // Check if API key is configured and trim any whitespace
+    const apiKey = process.env.OPENAI_API_KEY?.trim()
     
     // Log API key status without exposing sensitive data
     logger.debug('API Key check', {
@@ -372,7 +372,7 @@ export async function POST(req: NextRequest) {
           console.error('Invalid OpenAI API key detected')
           return NextResponse.json({
             reply: "I'm having trouble connecting to the AI service. Please check that the OpenAI API key is valid. In the meantime, let's continue our conversation!",
-            conversationId: sessionIdToReturn,
+            conversationId: sanitizedSessionId || randomUUID(),
             error: 'Invalid API key - please update in Vercel environment variables'
           })
         }
