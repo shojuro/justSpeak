@@ -294,6 +294,9 @@ export async function POST(req: NextRequest) {
     // Use sanitized message
     const sanitizedMessage = validation.sanitized!
     const sanitizedSessionId = sessionId ? sanitizeSessionId(sessionId) : undefined
+    
+    // Initialize sessionIdToReturn early to avoid undefined reference
+    let sessionIdToReturn = sanitizedSessionId || randomUUID()
 
     // Limit context to prevent token overflow
     const limitedContext = context.slice(-SESSION_CONFIG.MAX_CONTEXT_MESSAGES)
@@ -372,7 +375,7 @@ export async function POST(req: NextRequest) {
           console.error('Invalid OpenAI API key detected')
           return NextResponse.json({
             reply: "I'm having trouble connecting to the AI service. Please check that the OpenAI API key is valid. In the meantime, let's continue our conversation!",
-            conversationId: sanitizedSessionId || randomUUID(),
+            conversationId: sessionIdToReturn,
             error: 'Invalid API key - please update in Vercel environment variables'
           })
         }
@@ -397,7 +400,6 @@ export async function POST(req: NextRequest) {
     })
 
     // Database operations are optional for now
-    let sessionIdToReturn = sanitizedSessionId || randomUUID()
     let assessmentData = null
     
     // Try to save to database if user is authenticated
