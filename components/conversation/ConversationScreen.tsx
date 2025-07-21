@@ -8,6 +8,7 @@ import MessageList, { Message } from './MessageList'
 import SessionControls from './SessionControls'
 import ConversationHeader from './ConversationHeader'
 import ProviderSelector from './ProviderSelector'
+import VoiceControlSettings from './VoiceControlSettings'
 import VoiceDebugPanel from '@/components/VoiceDebugPanel'
 import { SESSION_CONFIG, ERROR_MESSAGES } from '@/lib/constants'
 import { logger } from '@/lib/logger'
@@ -29,6 +30,8 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState('1t1EeRixsJrKbiF1zwM6') // Jerry B. voice
   const [showProviderSettings, setShowProviderSettings] = useState(false)
   const [showDebugPanel, setShowDebugPanel] = useState(true) // Show debug panel by default
+  const [voiceControlMode, setVoiceControlMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
+  const [voiceSensitivity, setVoiceSensitivity] = useState(3)
   
   // Refs for tracking time
   const talkStartRef = useRef<Date | null>(null)
@@ -137,6 +140,19 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     const greetingTimer = setTimeout(() => {
       sendInitialGreeting()
     }, 1000)
+    
+    // Load saved voice control mode
+    const savedMode = localStorage.getItem('voice_control_mode') as 'continuous' | 'push-to-talk'
+    if (savedMode) {
+      setVoiceControlMode(savedMode)
+    }
+    
+    // Only auto-start listening in continuous mode
+    if (!savedMode || savedMode === 'continuous') {
+      setTimeout(() => {
+        startListening()
+      }, 2000)
+    }
 
     return () => {
       if (talkTimeIntervalRef.current) {
@@ -144,7 +160,38 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       }
       clearTimeout(greetingTimer)
     }
-  }, [sendInitialGreeting])
+  }, [sendInitialGreeting, startListening])
+
+  // Keyboard event handlers for push-to-talk
+  useEffect(() => {
+    if (voiceControlMode !== 'push-to-talk') return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Use spacebar for push-to-talk
+      if (e.code === 'Space' && !e.repeat && !isListening && !isSpeaking) {
+        e.preventDefault()
+        console.log('Push-to-talk: Starting listening')
+        startListening()
+      }
+    }
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // Release spacebar to stop
+      if (e.code === 'Space' && isListening) {
+        e.preventDefault()
+        console.log('Push-to-talk: Stopping listening')
+        stopListening()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [voiceControlMode, isListening, isSpeaking, startListening, stopListening])
 
   // Track user speaking time
   useEffect(() => {
@@ -158,6 +205,14 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   }, [isListening])
 
 
+  // Stop listening when AI is speaking (echo cancellation)
+  useEffect(() => {
+    if (isSpeaking && isListening) {
+      console.log('AI is speaking, stopping microphone to prevent feedback')
+      stopListening()
+    }
+  }, [isSpeaking, isListening, stopListening])
+
   // Process transcript changes
   useEffect(() => {
     if (transcript && transcript !== lastTranscript && !processingRef.current && !isSpeaking) {
@@ -166,6 +221,9 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       const trimmedTranscript = transcript.trim()
       if (trimmedTranscript.length > 0) {
         processingRef.current = true
+        // Stop listening immediately to prevent catching partial sentences
+        stopListening()
+        
         // Sanitize input before sending
         const sanitizedTranscript = trimmedTranscript
           .replace(/[<>]/g, '') // Remove potential HTML
@@ -174,7 +232,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         sendMessage(sanitizedTranscript)
       }
     }
-  }, [transcript, lastTranscript, isSpeaking])
+  }, [transcript, lastTranscript, isSpeaking, stopListening])
 
   const addUserMessage = (content: string) => {
     const message: Message = {
@@ -262,6 +320,16 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     } finally {
       setIsAIThinking(false)
       processingRef.current = false
+      
+      // Only restart listening in continuous mode
+      if (voiceControlMode === 'continuous') {
+        setTimeout(() => {
+          if (!isListening && !isSpeaking) {
+            console.log('Restarting microphone after AI response (continuous mode)')
+            startListening()
+          }
+        }, 1000) // 1 second delay to ensure speech synthesis has finished
+      }
     }
   }
 
@@ -344,6 +412,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         isSpeaking={isSpeaking}
         speechError={speechError || synthError}
         userTime={Math.floor(userSpeakingTime)}
+        voiceControlMode={voiceControlMode}
         onModeToggle={handleModeToggle}
         onMicrophoneToggle={handleMicrophoneToggle}
         onEndSession={handleEndSession}
@@ -351,12 +420,20 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       />
       
       {showProviderSettings && (
-        <ProviderSelector
-          voiceProvider={voiceProvider}
-          synthProvider={synthProvider}
-          onProviderChange={handleProviderChange}
-          onClose={() => setShowProviderSettings(false)}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-gray rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <VoiceControlSettings
+              onModeChange={setVoiceControlMode}
+              onSensitivityChange={setVoiceSensitivity}
+            />
+            <ProviderSelector
+              voiceProvider={voiceProvider}
+              synthProvider={synthProvider}
+              onProviderChange={handleProviderChange}
+              onClose={() => setShowProviderSettings(false)}
+            />
+          </div>
+        </div>
       )}
       
       {showDebugPanel && (speechError || synthError || !isListening) && (

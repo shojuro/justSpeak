@@ -113,7 +113,8 @@
       "Bash(cd:*)",
       "Bash(cd:*)",
       "Bash(vercel:*)",
-      "WebFetch(domain:just-speak-2155muecy-shojuros-projects.vercel.app)"
+      "WebFetch(domain:just-speak-2155muecy-shojuros-projects.vercel.app)",
+      "Bash(cd:*)"
     ],
     "deny": []
   }

@@ -6,6 +6,7 @@ interface SessionControlsProps {
   isSpeaking: boolean
   speechError: any
   userTime: number
+  voiceControlMode?: 'continuous' | 'push-to-talk'
   onModeToggle: () => void
   onMicrophoneToggle: () => void
   onEndSession: () => void
@@ -18,6 +19,7 @@ export default function SessionControls({
   isSpeaking,
   speechError,
   userTime,
+  voiceControlMode = 'continuous',
   onModeToggle,
   onMicrophoneToggle,
   onEndSession,
@@ -73,7 +75,9 @@ export default function SessionControls({
           Your speaking time: {formatTime(userTime)}
         </div>
         <p className="text-xs text-warm-coral/60 mt-1">
-          Keep talking to improve your English!
+          {voiceControlMode === 'push-to-talk' 
+            ? 'Hold spacebar or click mic button to speak' 
+            : 'Keep talking to improve your English!'}
         </p>
       </div>
 
