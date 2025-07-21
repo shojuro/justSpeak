@@ -38,6 +38,11 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const talkTimeIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const speakingStartRef = useRef<Date | null>(null)
   const processingRef = useRef<boolean>(false)
+  
+  // Debouncing refs for speech recognition
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const accumulatedTranscriptRef = useRef<string>('')
+  const lastFinalTranscriptRef = useRef<string>('')
 
   // Speech hooks with API support
   const { 
@@ -171,6 +176,11 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       if (e.code === 'Space' && !e.repeat && !isListening && !isSpeaking) {
         e.preventDefault()
         console.log('Push-to-talk: Starting listening')
+        
+        // Reset transcript tracking
+        accumulatedTranscriptRef.current = ''
+        lastFinalTranscriptRef.current = ''
+        
         startListening()
       }
     }
@@ -213,26 +223,59 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     }
   }, [isSpeaking, isListening, stopListening])
 
-  // Process transcript changes
+  // Process transcript changes with debouncing
   useEffect(() => {
-    if (transcript && transcript !== lastTranscript && !processingRef.current && !isSpeaking) {
-      setLastTranscript(transcript)
+    if (!transcript || processingRef.current || isSpeaking) return
+    
+    // Update accumulated transcript
+    accumulatedTranscriptRef.current = transcript
+    
+    // Clear existing timer
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current)
+    }
+    
+    // Set up silence detection timer
+    const silenceDelay = voiceControlMode === 'push-to-talk' ? 500 : 1500 // Shorter delay for push-to-talk
+    
+    silenceTimerRef.current = setTimeout(() => {
+      // Check if we have new content since last final transcript
+      const currentTranscript = accumulatedTranscriptRef.current.trim()
+      const lastFinal = lastFinalTranscriptRef.current.trim()
       
-      const trimmedTranscript = transcript.trim()
-      if (trimmedTranscript.length > 0) {
-        processingRef.current = true
-        // Stop listening immediately to prevent catching partial sentences
-        stopListening()
+      // Only process if we have new content
+      if (currentTranscript && currentTranscript !== lastFinal && currentTranscript.length > lastFinal.length) {
+        // Extract only the new part
+        const newContent = lastFinal ? currentTranscript.substring(lastFinal.length).trim() : currentTranscript
         
-        // Sanitize input before sending
-        const sanitizedTranscript = trimmedTranscript
-          .replace(/[<>]/g, '') // Remove potential HTML
-          .substring(0, 5000) // Limit length (increased from 1000)
-        addUserMessage(sanitizedTranscript)
-        sendMessage(sanitizedTranscript)
+        if (newContent && newContent.length > 0) {
+          console.log('Processing complete sentence:', newContent)
+          processingRef.current = true
+          lastFinalTranscriptRef.current = currentTranscript
+          
+          // Stop listening immediately
+          stopListening()
+          
+          // Clear accumulated transcript
+          accumulatedTranscriptRef.current = ''
+          
+          // Sanitize and send
+          const sanitizedTranscript = newContent
+            .replace(/[<>]/g, '')
+            .substring(0, 5000)
+          
+          addUserMessage(sanitizedTranscript)
+          sendMessage(sanitizedTranscript)
+        }
+      }
+    }, silenceDelay)
+    
+    return () => {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current)
       }
     }
-  }, [transcript, lastTranscript, isSpeaking, stopListening])
+  }, [transcript, isSpeaking, voiceControlMode, stopListening])
 
   const addUserMessage = (content: string) => {
     const message: Message = {
@@ -337,6 +380,10 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     if (isListening) {
       stopListening()
     } else {
+      // Reset transcript tracking when starting new session
+      accumulatedTranscriptRef.current = ''
+      lastFinalTranscriptRef.current = ''
+      
       // Check microphone permission first
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true })

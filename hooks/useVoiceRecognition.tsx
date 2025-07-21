@@ -39,6 +39,7 @@ export function useVoiceRecognition({
         recognition.continuous = continuous
         recognition.interimResults = interimResults
         recognition.lang = language
+        recognition.maxAlternatives = 1 // Only get the best result
 
         recognition.onstart = () => {
           setIsListening(true)
@@ -46,27 +47,29 @@ export function useVoiceRecognition({
         }
 
         recognition.onresult = (event: any) => {
-          let finalTranscript = ''
-          let interimTranscript = ''
+          let currentTranscript = ''
+          let hasFinalResult = false
 
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript
-            if (event.results[i].isFinal) {
-              finalTranscript += transcript + ' '
-            } else {
-              interimTranscript += transcript
+          // Build the complete transcript from all results
+          for (let i = 0; i < event.results.length; i++) {
+            const result = event.results[i]
+            currentTranscript += result[0].transcript
+            
+            if (result.isFinal) {
+              hasFinalResult = true
             }
           }
 
-          const fullTranscript = finalTranscript || interimTranscript
-          setTranscript(fullTranscript.trim())
+          // Always update the transcript with the complete text
+          setTranscript(currentTranscript.trim())
           
           if (onTranscript) {
-            onTranscript(fullTranscript.trim())
+            onTranscript(currentTranscript.trim())
           }
           
-          if (finalTranscript && onFinalTranscript) {
-            onFinalTranscript(finalTranscript.trim())
+          // Only call final transcript callback when we have a final result
+          if (hasFinalResult && onFinalTranscript) {
+            onFinalTranscript(currentTranscript.trim())
           }
         }
 
