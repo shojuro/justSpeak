@@ -118,6 +118,14 @@
       "Bash(cd:*)",
       "Bash(cd:*)",
       "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
+      "Bash(npx next lint:*)",
+      "Bash(npm outdated:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm ls:*)",
+      "Bash(cd:*)",
+      "Bash(cd:*)",
       "Bash(cd:*)"
     ],
     "deny": []

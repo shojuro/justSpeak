@@ -1,0 +1,41 @@
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+    open-pull-requests-limit: 10
+    # Security updates only for production dependencies
+    allow:
+      - dependency-type: "production"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    reviewers:
+      - "JM505" # Updated with your GitHub username
+    
+  # Enable security updates
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    # Security updates for all dependencies
+    allow:
+      - dependency-type: "all"
+    commit-message:
+      prefix: "security"
+      include: "scope"
+    labels:
+      - "security"
+      - "dependencies"
+      - "automated"
+    reviewers:
+      - "JM505" # Updated with your GitHub username

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
+import { getAuthenticatedUser } from '@/lib/auth-helpers'
 
 // Manual validation
 function validateInput(body: any) {
@@ -42,6 +43,15 @@ const elevenLabsVoices = {
 
 export async function POST(req: NextRequest) {
   try {
+    // Authentication is mandatory
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
     const body = await req.json()
     
     // Validate input

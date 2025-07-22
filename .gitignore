@@ -42,3 +42,9 @@ next-env.d.ts
 /logs
 .vercel
 .env.vercel
+
+# Test files
+test-*.html
+quick-*.html
+*.html
+!public/offline.html

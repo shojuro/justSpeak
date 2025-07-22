@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
+import { getAuthenticatedUser } from '@/lib/auth-helpers'
 
 // Supported audio formats
 const SUPPORTED_FORMATS = ['mp3', 'mp4', 'mpeg', 'mpga', 'm4a', 'wav', 'webm']
@@ -7,6 +8,15 @@ const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25MB
 
 export async function POST(req: NextRequest) {
   try {
+    // Authentication is mandatory
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
     // Get form data
     const formData = await req.formData()
     const audioFile = formData.get('audio') as File

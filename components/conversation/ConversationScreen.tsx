@@ -73,7 +73,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       clearTranscript()
       _startListening()
     } else {
-      console.log('Cannot start listening - AI is speaking')
+      logger.debug('Cannot start listening - AI is speaking')
     }
   }, [_startListening, isAISpeaking, clearTranscript])
   
@@ -92,7 +92,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   
   // Wrapped speak function that manages AI speaking state
   const speak = useCallback(async (text: string) => {
-    console.log('AI speaking:', text.substring(0, 50) + '...')
+    logger.debug('AI speaking', { preview: text.substring(0, 50) + '...' })
     setIsAISpeaking(true)
     // Force stop any listening
     if (isListening) {
@@ -104,7 +104,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     } finally {
       // Add longer delay before allowing microphone to restart
       setTimeout(() => {
-        console.log('AI finished speaking, waiting before enabling mic')
+        logger.debug('AI finished speaking, waiting before enabling mic')
         setIsAISpeaking(false)
       }, 1500) // Increased from 500ms to 1.5s
     }
@@ -114,7 +114,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const sendInitialGreeting = useCallback(async () => {
     // Prevent multiple greetings
     if (greetingSentRef.current) {
-      console.log('Greeting already sent, skipping')
+      logger.debug('Greeting already sent, skipping')
       return
     }
     
@@ -143,10 +143,10 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         if (window.speechSynthesis) {
           await speak(greeting)
         } else {
-          console.log('Speech synthesis not ready yet, skipping audio')
+          logger.debug('Speech synthesis not ready yet, skipping audio')
         }
       } catch (err) {
-        console.error('Failed to speak greeting:', err)
+        logger.error('Failed to speak greeting', err as Error)
         // Continue anyway - text is still shown
       }
     }, 1500) // Increased delay to ensure readiness
@@ -223,7 +223,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       // Mark initialization complete after greeting
       setTimeout(() => {
         setIsInitializing(false)
-        console.log('Initialization complete, voice control mode:', savedMode || 'push-to-talk')
+        logger.info('Initialization complete', { voiceControlMode: savedMode || 'push-to-talk' })
       }, 3000) // Wait 3 seconds after greeting before allowing any mic
     }, 1000)
 
@@ -243,7 +243,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       // Use spacebar for push-to-talk
       if (e.code === 'Space' && !e.repeat && !isListening && !isAISpeaking) {
         e.preventDefault()
-        console.log('Push-to-talk: Starting listening')
+        logger.debug('Push-to-talk: Starting listening')
         startListening()
       }
     }
@@ -252,7 +252,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       // Release spacebar to stop
       if (e.code === 'Space' && isListening) {
         e.preventDefault()
-        console.log('Push-to-talk: Stopping listening')
+        logger.debug('Push-to-talk: Stopping listening')
         stopListening()
       }
     }
@@ -426,14 +426,14 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       logger.error('Error sending message', error as Error)
       console.error('Chat error details:', error)
       
-      let errorContent = ERROR_MESSAGES.API_ERROR
+      let errorContent: string = ERROR_MESSAGES.API_ERROR
       if (error instanceof Error) {
         if (error.message.includes('API key')) {
-          errorContent = 'AI service not configured. Please check API keys.'
+          errorContent = ERROR_MESSAGES.API_ERROR
         } else if (error.message.includes('rate limit')) {
-          errorContent = 'Too many requests. Please wait a moment and try again.'
+          errorContent = ERROR_MESSAGES.RATE_LIMIT
         } else if (error.message.includes('network')) {
-          errorContent = 'Network error. Please check your connection.'
+          errorContent = ERROR_MESSAGES.API_ERROR
         }
       }
       

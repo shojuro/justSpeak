@@ -16,42 +16,45 @@ export async function POST(req: NextRequest) {
                       req.headers.get('x-real-ip') || undefined
     const sessionMeta = generateSessionMetadata(userAgent, ipAddress)
     
-    // Try to get authenticated user (optional)
-    let user = null
-    try {
-      user = await getAuthenticatedUser()
-    } catch (error) {
-      logger.debug('No authenticated user for session', { sessionId })
+    // Authentication is mandatory
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
     }
     
     // Get request body if mode is specified
     const body = await req.json().catch(() => ({}))
     const mode = body.mode || 'conversation'
     
-    // If user is authenticated, save to database
-    if (user) {
-      try {
-        // Create session in database with secure token
-        const session = await db.sessions.create({
-          user_id: user.id,
-          mode: mode,
-          start_time: new Date().toISOString(),
-          user_talk_time: 0,
-          ai_talk_time: 0,
-          // Store session security data (you may need to add these columns)
-          // session_token_hash: hashSessionToken(token).hash,
-          // session_fingerprint: fingerprint,
-          // expires_at: new Date(sessionMeta.expiresAt).toISOString()
-        })
-        
-        logger.info('Secure session created', { 
-          sessionId: session.id, 
-          userId: user.id,
-          fingerprint 
-        })
-      } catch (dbError) {
-        logger.error('Failed to save session to database', dbError as Error)
-      }
+    // Save session to database
+    try {
+      // Create session in database with secure token
+      const session = await db.sessions.create({
+        user_id: user.id,
+        mode: mode,
+        start_time: new Date().toISOString(),
+        user_talk_time: 0,
+        ai_talk_time: 0,
+        // Store session security data (you may need to add these columns)
+        // session_token_hash: hashSessionToken(token).hash,
+        // session_fingerprint: fingerprint,
+        // expires_at: new Date(sessionMeta.expiresAt).toISOString()
+      })
+      
+      logger.info('Secure session created', { 
+        sessionId: session.id, 
+        userId: user.id,
+        fingerprint 
+      })
+    } catch (dbError) {
+      logger.error('Failed to save session to database', dbError as Error)
+      return NextResponse.json(
+        { error: 'Failed to create session' },
+        { status: 500 }
+      )
     }
     
     // Return session info (token is sent securely)

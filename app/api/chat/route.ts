@@ -197,26 +197,25 @@ export async function POST(req: NextRequest) {
   const logger = createRequestLogger(req)
   
   try {
-    logger.info('Chat API request received')
-    console.log('Chat API called at:', new Date().toISOString())
+    logger.info('Chat API request received', { timestamp: new Date().toISOString() })
     
-    // Check if authentication is required (trim whitespace)
-    const requireAuth = process.env.REQUIRE_AUTH?.trim() === 'true'
-    
-    // Try to get authenticated user (optional for MVP)
+    // Authentication is mandatory for all chat requests
     let user = null
-    if (requireAuth) {
-      try {
-        user = await getAuthenticatedUser()
-      } catch (error) {
-        logger.debug('Auth check failed', { error })
-        
-        // Only enforce auth if explicitly required
+    try {
+      user = await getAuthenticatedUser()
+      if (!user) {
+        logger.warn('No authenticated user found')
         return NextResponse.json(
           { error: 'Authentication required' },
           { status: 401 }
         )
       }
+    } catch (error) {
+      logger.error('Authentication failed', { error })
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
     }
     
     // Check if API key is configured and trim any whitespace
@@ -228,7 +227,7 @@ export async function POST(req: NextRequest) {
       configured: !!apiKey && apiKey.length > 0,
       length: apiKey ? apiKey.length : 0
     })
-    console.log('OpenAI API Key configured:', !!apiKey, 'Length:', apiKey ? apiKey.length : 0)
+    logger.debug('OpenAI API Key configured', { configured: !!apiKey, length: apiKey ? apiKey.length : 0 })
     
     if (!apiKey) {
       logger.error('OpenAI API key not configured')
@@ -332,7 +331,7 @@ export async function POST(req: NextRequest) {
       model: requestBody.model
     })
     
-    console.log('Calling OpenAI API with model:', requestBody.model)
+    logger.debug('Calling OpenAI API', { model: requestBody.model })
     
     // Add timeout to prevent hanging
     const controller = new AbortController()
@@ -363,7 +362,7 @@ export async function POST(req: NextRequest) {
       throw fetchError
     }
 
-    console.log('OpenAI API response status:', response.status)
+    logger.debug('OpenAI API response', { status: response.status })
 
     if (!response.ok) {
       const errorText = await response.text()

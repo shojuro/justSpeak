@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
+import { getAuthenticatedUser } from '@/lib/auth-helpers'
 
 interface SpeechRequest {
   text: string
@@ -15,6 +16,15 @@ interface ElevenLabsVoiceSettings {
 
 export async function POST(req: NextRequest) {
   try {
+    // Authentication is mandatory
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
     // Check if API key is configured
     const apiKey = process.env.ELEVENLABS_API_KEY
     if (!apiKey || apiKey === 'your_elevenlabs_api_key_here') {

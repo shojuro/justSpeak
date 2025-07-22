@@ -3,12 +3,12 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   eslint: {
-    // Disable ESLint during builds for MVP
-    ignoreDuringBuilds: true,
+    // ESLint errors will now fail the build
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    // Disable TypeScript errors during builds for MVP
-    ignoreBuildErrors: true,
+    // TypeScript errors will now fail the build
+    ignoreBuildErrors: false,
   },
   async redirects() {
     return [
