@@ -126,32 +126,50 @@ export default function SessionControls({
             )}
           </div>
           
-          {/* Center - Microphone button (larger on mobile) */}
-          <button
-            onClick={onMicrophoneToggle}
-            disabled={isSpeaking}
-            className={`p-4 sm:p-5 rounded-full transition-all transform ${
-              isListening
-                ? 'bg-warm-coral text-white animate-pulse scale-110'
-                : 'bg-warm-coral-light text-jet hover:bg-warm-coral hover:text-white'
-            } ${isSpeaking ? 'opacity-50 cursor-not-allowed' : ''}`}
-            aria-label={isListening ? 'Stop recording' : 'Start recording'}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="w-7 h-7 sm:w-6 sm:h-6"
+          {/* Center - Microphone button with activity indicator */}
+          <div className="relative">
+            {/* Animated ring for listening state */}
+            {isListening && (
+              <div className="absolute inset-0 rounded-full animate-ping bg-warm-coral opacity-75" />
+            )}
+            
+            {/* Microphone button */}
+            <button
+              onClick={onMicrophoneToggle}
+              disabled={isSpeaking}
+              className={`relative p-4 sm:p-5 rounded-full transition-all transform ${
+                isListening
+                  ? 'bg-warm-coral text-white scale-110 shadow-lg'
+                  : 'bg-warm-coral-light text-jet hover:bg-warm-coral hover:text-white'
+              } ${isSpeaking ? 'opacity-50 cursor-not-allowed' : ''}`}
+              aria-label={isListening ? 'Stop recording' : 'Start recording'}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
-              />
-            </svg>
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className={`w-7 h-7 sm:w-6 sm:h-6 ${isListening ? 'animate-pulse' : ''}`}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
+                />
+              </svg>
+              
+              {/* Live indicator dot */}
+              {isListening && (
+                <div className="absolute top-0 right-0 -mt-1 -mr-1">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                  </span>
+                </div>
+              )}
+            </button>
+          </div>
 
           {/* Right side - mode indicator */}
           {mode === 'learning' && (

@@ -40,6 +40,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [silenceCountdown, setSilenceCountdown] = useState(0)
   const [showMicPermission, setShowMicPermission] = useState(false)
   const [micPermissionGranted, setMicPermissionGranted] = useState(false)
+  const [listeningDuration, setListeningDuration] = useState(0)
   
   // Refs for tracking time
   const talkStartRef = useRef<Date | null>(null)
@@ -51,6 +52,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const earlyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const listeningTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastTranscriptRef = useRef<string>('')
   const greetingSentRef = useRef<boolean>(false)
 
@@ -294,14 +296,38 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     }
   }, [voiceControlMode, isListening, isAISpeaking, startListening, stopListening])
 
-  // Track user speaking time
+  // Track user speaking time and listening duration
   useEffect(() => {
-    if (isListening && !speakingStartRef.current) {
-      speakingStartRef.current = new Date()
-    } else if (!isListening && speakingStartRef.current) {
-      const elapsed = (new Date().getTime() - speakingStartRef.current.getTime()) / 1000
-      setUserSpeakingTime(prev => prev + elapsed)
-      speakingStartRef.current = null
+    if (isListening) {
+      if (!speakingStartRef.current) {
+        speakingStartRef.current = new Date()
+      }
+      
+      // Start listening duration timer
+      setListeningDuration(0)
+      let seconds = 0
+      listeningTimerRef.current = setInterval(() => {
+        seconds++
+        setListeningDuration(seconds)
+      }, 1000)
+    } else {
+      if (speakingStartRef.current) {
+        const elapsed = (new Date().getTime() - speakingStartRef.current.getTime()) / 1000
+        setUserSpeakingTime(prev => prev + elapsed)
+        speakingStartRef.current = null
+      }
+      
+      // Clear listening timer
+      if (listeningTimerRef.current) {
+        clearInterval(listeningTimerRef.current)
+        setListeningDuration(0)
+      }
+    }
+    
+    return () => {
+      if (listeningTimerRef.current) {
+        clearInterval(listeningTimerRef.current)
+      }
     }
   }, [isListening])
 
@@ -699,6 +725,15 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         <div className="absolute top-16 sm:top-20 left-1/2 transform -translate-x-1/2 bg-blue-500/20 px-4 sm:px-6 py-2 sm:py-3 rounded-full mx-4">
           <p className="text-xs sm:text-sm text-blue-400 animate-pulse whitespace-nowrap">
             Loading voices...
+          </p>
+        </div>
+      )}
+      
+      {/* Still listening indicator - shows after 3 seconds */}
+      {isListening && listeningDuration >= 3 && !isWaitingForSilence && !isInitializing && (
+        <div className="absolute bottom-40 sm:bottom-48 left-1/2 transform -translate-x-1/2 bg-jet/80 px-3 sm:px-4 py-2 rounded-full mx-4">
+          <p className="text-xs sm:text-sm text-warm-coral-light animate-pulse">
+            Still listening... Take your time 🎤
           </p>
         </div>
       )}
