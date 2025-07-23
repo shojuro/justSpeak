@@ -27,6 +27,7 @@ export function useVoiceRecognition({
   const recognitionRef = useRef<any>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const sessionManagerRef = useRef<SpeechSessionManager>(new SpeechSessionManager())
 
   // Initialize browser speech recognition
   useEffect(() => {
