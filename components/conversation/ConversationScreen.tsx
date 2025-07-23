@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition'
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis'
-import { checkAPIConfiguration, getBestProvider, getSavedProvider } from '@/lib/api-config-client'
+import { checkAPIConfiguration, getSavedProvider } from '@/lib/api-config-client'
 import MessageList, { Message } from './MessageList'
 import SessionControls from './SessionControls'
 import ConversationHeader from './ConversationHeader'
@@ -11,8 +11,9 @@ import ProviderSelector from './ProviderSelector'
 import VoiceControlSettings from './VoiceControlSettings'
 import VoiceDebugPanel from '@/components/VoiceDebugPanel'
 import MicrophonePermission from '@/components/MicrophonePermission'
-import { SESSION_CONFIG, ERROR_MESSAGES } from '@/lib/constants'
+import { ERROR_MESSAGES } from '@/lib/constants'
 import { logger } from '@/lib/logger'
+import { detectSentenceCompletion, shouldProcessTranscript } from '@/lib/speech-utils'
 
 interface ConversationScreenProps {
   onEnd: (talkTime: number) => void
@@ -33,9 +34,13 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [showDebugPanel, setShowDebugPanel] = useState(process.env.NODE_ENV === 'development')
   const [voiceControlMode, setVoiceControlMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
   const [voiceSensitivity, setVoiceSensitivity] = useState(3)
+  const [customSilenceThreshold, setCustomSilenceThreshold] = useState<number | null>(null)
+  const [patientMode, setPatientMode] = useState(false)
   const [isWaitingForSilence, setIsWaitingForSilence] = useState(false)
+  const [silenceCountdown, setSilenceCountdown] = useState(0)
   const [showMicPermission, setShowMicPermission] = useState(false)
   const [micPermissionGranted, setMicPermissionGranted] = useState(false)
+  const [listeningDuration, setListeningDuration] = useState(0)
   
   // Refs for tracking time
   const talkStartRef = useRef<Date | null>(null)
@@ -45,12 +50,16 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   
   // Speech recognition refs
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const earlyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const listeningTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastTranscriptRef = useRef<string>('')
   const greetingSentRef = useRef<boolean>(false)
 
   // Track if AI is currently speaking (more robust than isSpeaking)
   const [isAISpeaking, setIsAISpeaking] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
+  const [isVoiceLoading, setIsVoiceLoading] = useState(true)
   
   // Speech hooks with API support
   const { 
@@ -84,7 +93,8 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     speak: _speak, 
     isSpeaking, 
     stop: stopSpeaking,
-    error: synthError 
+    error: synthError,
+    isReady: isSynthReady 
   } = useSpeechSynthesis({
     provider: synthProvider,
     voice: synthProvider === 'elevenlabs' ? elevenLabsVoiceId : 'nova',
@@ -139,21 +149,38 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       stopListening()
     }
     
-    // Add delay to ensure speech synthesis is ready
-    setTimeout(async () => {
+    // Wait for speech synthesis to be ready with retry logic
+    const maxRetries = 10
+    let retryCount = 0
+    
+    const attemptSpeak = async () => {
       try {
-        // Check if speechSynthesis is available
-        if (window.speechSynthesis) {
+        // Check if synthesis is ready
+        if (isSynthReady && window.speechSynthesis) {
+          logger.debug('Speech synthesis ready, speaking greeting')
+          setIsVoiceLoading(false)
           await speak(greeting)
+        } else if (retryCount < maxRetries) {
+          retryCount++
+          logger.debug(`Speech synthesis not ready, retry ${retryCount}/${maxRetries}`)
+          // Exponential backoff: 100ms, 200ms, 400ms, etc.
+          setTimeout(attemptSpeak, Math.min(100 * Math.pow(2, retryCount - 1), 3000))
         } else {
-          logger.debug('Speech synthesis not ready yet, skipping audio')
+          logger.warn('Speech synthesis failed to initialize after retries')
+          setIsVoiceLoading(false)
+          // Fallback to text-only mode after 5 seconds
+          logger.warn('Voice synthesis unavailable - falling back to text mode')
         }
       } catch (err) {
         logger.error('Failed to speak greeting', err as Error)
+        setIsVoiceLoading(false)
         // Continue anyway - text is still shown
       }
-    }, 1500) // Increased delay to ensure readiness
-  }, [speak, isListening, stopListening])
+    }
+    
+    // Start attempting after initial delay
+    setTimeout(attemptSpeak, 500)
+  }, [speak, isListening, stopListening, isSynthReady, setIsVoiceLoading])
 
   // Initialize providers and start session
   useEffect(() => {
@@ -269,14 +296,38 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     }
   }, [voiceControlMode, isListening, isAISpeaking, startListening, stopListening])
 
-  // Track user speaking time
+  // Track user speaking time and listening duration
   useEffect(() => {
-    if (isListening && !speakingStartRef.current) {
-      speakingStartRef.current = new Date()
-    } else if (!isListening && speakingStartRef.current) {
-      const elapsed = (new Date().getTime() - speakingStartRef.current.getTime()) / 1000
-      setUserSpeakingTime(prev => prev + elapsed)
-      speakingStartRef.current = null
+    if (isListening) {
+      if (!speakingStartRef.current) {
+        speakingStartRef.current = new Date()
+      }
+      
+      // Start listening duration timer
+      setListeningDuration(0)
+      let seconds = 0
+      listeningTimerRef.current = setInterval(() => {
+        seconds++
+        setListeningDuration(seconds)
+      }, 1000)
+    } else {
+      if (speakingStartRef.current) {
+        const elapsed = (new Date().getTime() - speakingStartRef.current.getTime()) / 1000
+        setUserSpeakingTime(prev => prev + elapsed)
+        speakingStartRef.current = null
+      }
+      
+      // Clear listening timer
+      if (listeningTimerRef.current) {
+        clearInterval(listeningTimerRef.current)
+        setListeningDuration(0)
+      }
+    }
+    
+    return () => {
+      if (listeningTimerRef.current) {
+        clearInterval(listeningTimerRef.current)
+      }
     }
   }, [isListening])
 
@@ -301,12 +352,99 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     // Show waiting indicator
     setIsWaitingForSilence(true)
     
-    // Longer silence detection for complete thoughts
-    const silenceDelay = voiceControlMode === 'push-to-talk' ? 1500 : 3500 // 1.5s for PTT, 3.5s for continuous
+    // Much longer silence detection for language learners
+    // Dynamic thresholds based on utterance length
+    const wordCount = transcript.trim().split(/\s+/).length
+    let silenceDelay: number
     
-    console.log(`Transcript: "${transcript}" | Waiting ${silenceDelay}ms for silence`)
+    // Use custom threshold if set, otherwise use defaults
+    if (customSilenceThreshold !== null) {
+      silenceDelay = customSilenceThreshold * 1000 // Convert to milliseconds
+    } else if (patientMode) {
+      // Patient mode: Extra long delays
+      silenceDelay = 12000 // 12 seconds minimum
+    } else if (voiceControlMode === 'push-to-talk') {
+      // Push-to-talk: More generous for manual control
+      silenceDelay = 5000 // 5 seconds base
+    } else {
+      // Continuous mode: Dynamic based on speech length
+      if (wordCount < 20) {
+        silenceDelay = 5000 // 5 seconds for short utterances
+      } else if (wordCount < 50) {
+        silenceDelay = 8000 // 8 seconds for medium utterances
+      } else {
+        silenceDelay = 10000 // 10 seconds for long utterances
+      }
+    }
     
-    silenceTimerRef.current = setTimeout(() => {
+    // Check sentence completion
+    const completion = detectSentenceCompletion(transcript)
+    console.log(`Transcript: "${transcript}" | Waiting ${silenceDelay}ms | Completion: ${completion.isComplete} (${completion.confidence}) - ${completion.reason}`)
+    
+    // Set initial countdown (may be shortened by completion detection)
+    setSilenceCountdown(Math.ceil(silenceDelay / 1000))
+    
+    // Clear any existing countdown
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current)
+    }
+    
+    // Clear any existing early check
+    if (earlyCheckIntervalRef.current) {
+      clearInterval(earlyCheckIntervalRef.current)
+    }
+    
+    // Check for early completion every 500ms
+    let earlyCheckCount = 0
+    earlyCheckIntervalRef.current = setInterval(() => {
+      earlyCheckCount++
+      const elapsedMs = earlyCheckCount * 500
+      
+      // Check if we should process early based on completion
+      if (shouldProcessTranscript(transcript, elapsedMs, silenceDelay)) {
+        console.log(`Early completion detected after ${elapsedMs}ms`)
+        if (earlyCheckIntervalRef.current) {
+          clearInterval(earlyCheckIntervalRef.current)
+        }
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current)
+          // Process immediately
+          silenceTimerRef.current = setTimeout(() => {
+            processTranscript()
+          }, 0)
+        }
+      }
+      
+      // Stop checking after half the silence delay
+      if (elapsedMs >= silenceDelay / 2) {
+        if (earlyCheckIntervalRef.current) {
+          clearInterval(earlyCheckIntervalRef.current)
+        }
+      }
+    }, 500)
+    
+    // Update countdown every second
+    countdownIntervalRef.current = setInterval(() => {
+      setSilenceCountdown(prev => {
+        if (prev <= 1) {
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current)
+          }
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    
+    // Extract processing logic to reuse for early completion
+    const processTranscript = () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current)
+      }
+      if (earlyCheckIntervalRef.current) {
+        clearInterval(earlyCheckIntervalRef.current)
+      }
+      
       const finalTranscript = transcript.trim()
       
       // Process if we have content and it's different from last processed
@@ -349,15 +487,25 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       
       // Hide waiting indicator
       setIsWaitingForSilence(false)
-    }, silenceDelay)
+      setSilenceCountdown(0)
+    }
+    
+    silenceTimerRef.current = setTimeout(processTranscript, silenceDelay)
     
     return () => {
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current)
       }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current)
+      }
+      if (earlyCheckIntervalRef.current) {
+        clearInterval(earlyCheckIntervalRef.current)
+      }
       setIsWaitingForSilence(false)
+      setSilenceCountdown(0)
     }
-  }, [transcript, isAISpeaking, isInitializing, voiceControlMode, stopListening, clearTranscript])
+  }, [transcript, isAISpeaking, isInitializing, voiceControlMode, customSilenceThreshold, patientMode, stopListening, clearTranscript])
 
   const addUserMessage = (content: string) => {
     const message: Message = {
@@ -572,11 +720,34 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         </div>
       )}
       
-      {/* Mobile-friendly waiting indicator */}
+      {/* Voice loading indicator */}
+      {!isInitializing && isVoiceLoading && (
+        <div className="absolute top-16 sm:top-20 left-1/2 transform -translate-x-1/2 bg-blue-500/20 px-4 sm:px-6 py-2 sm:py-3 rounded-full mx-4">
+          <p className="text-xs sm:text-sm text-blue-400 animate-pulse whitespace-nowrap">
+            Loading voices...
+          </p>
+        </div>
+      )}
+      
+      {/* Still listening indicator - shows after 3 seconds */}
+      {isListening && listeningDuration >= 3 && !isWaitingForSilence && !isInitializing && (
+        <div className="absolute bottom-40 sm:bottom-48 left-1/2 transform -translate-x-1/2 bg-jet/80 px-3 sm:px-4 py-2 rounded-full mx-4">
+          <p className="text-xs sm:text-sm text-warm-coral-light animate-pulse">
+            Still listening... Take your time 🎤
+          </p>
+        </div>
+      )}
+      
+      {/* Mobile-friendly waiting indicator with countdown */}
       {isWaitingForSilence && isListening && !isInitializing && (
         <div className="absolute bottom-24 sm:bottom-32 left-1/2 transform -translate-x-1/2 bg-dark-gray/90 px-3 sm:px-4 py-2 rounded-full mx-4">
-          <p className="text-xs sm:text-sm text-warm-coral animate-pulse">
-            Listening... (waiting for you to finish)
+          <p className="text-xs sm:text-sm text-warm-coral animate-pulse flex items-center gap-2">
+            <span>Listening...</span>
+            {silenceCountdown > 0 && (
+              <span className="font-mono bg-warm-coral/20 px-2 py-0.5 rounded">
+                {silenceCountdown}s
+              </span>
+            )}
           </p>
         </div>
       )}
@@ -601,6 +772,8 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
             <VoiceControlSettings
               onModeChange={setVoiceControlMode}
               onSensitivityChange={setVoiceSensitivity}
+              onSilenceThresholdChange={setCustomSilenceThreshold}
+              onPatientModeChange={setPatientMode}
             />
             <ProviderSelector
               voiceProvider={voiceProvider}

@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFormValidation, validators } from '@/lib/form-validation'
 import { FormField, Input, SubmitButton } from '@/components/ui/Form'
@@ -12,8 +11,6 @@ import { FeedbackButton } from '@/components/ui/FeedbackButton'
 
 export default function LoginPage() {
   const { signIn, signInWithProvider } = useAuth()
-  const searchParams = useSearchParams()
-  const redirect = searchParams.get('redirect') || '/dashboard'
   const [isLoading, setIsLoading] = useState(false)
 
   const schema = {
