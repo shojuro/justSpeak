@@ -37,20 +37,49 @@ export class SpeechSessionManager {
       this.finalTranscripts.add(transcript)
     }
 
-    // For continuous recognition, we want to accumulate all transcripts
-    // but avoid duplicates from interim results
-    if (!this.accumulatedTranscript.includes(transcript)) {
-      this.accumulatedTranscript = transcript
-    }
+    // For continuous recognition, handle incremental updates properly
+    // The transcript parameter contains the full current utterance, not just new words
+    // So we should replace, not append
+    this.accumulatedTranscript = transcript
   }
 
   getFinalTranscript(): string {
     // Combine all final transcripts if available
     if (this.finalTranscripts.size > 0) {
-      return Array.from(this.finalTranscripts).join(' ').trim()
+      // Deduplicate transcripts by removing exact duplicates
+      const uniqueTranscripts = Array.from(this.finalTranscripts)
+      return this.deduplicateTranscripts(uniqueTranscripts.join(' ')).trim()
     }
     // Otherwise return the accumulated transcript
-    return this.accumulatedTranscript.trim()
+    return this.deduplicateTranscripts(this.accumulatedTranscript).trim()
+  }
+  
+  private deduplicateTranscripts(text: string): string {
+    // Remove consecutive duplicate words/phrases
+    const words = text.split(/\s+/)
+    const result: string[] = []
+    
+    for (let i = 0; i < words.length; i++) {
+      // Check if this word starts a repeated phrase
+      let duplicateLength = 0
+      for (let len = 1; len <= Math.min(10, words.length - i); len++) {
+        const phrase = words.slice(i, i + len).join(' ')
+        const nextPhrase = words.slice(i + len, i + len * 2).join(' ')
+        
+        if (phrase === nextPhrase) {
+          duplicateLength = len
+        }
+      }
+      
+      if (duplicateLength > 0) {
+        // Skip the duplicate
+        i += duplicateLength - 1
+      } else {
+        result.push(words[i])
+      }
+    }
+    
+    return result.join(' ')
   }
 
   getCurrentTranscript(): string {
@@ -94,6 +123,8 @@ export class AISpeechFilter {
     "friendly english conversation partner",
     "english conversation partner",
     "conversation partner",
+    "what would you like to talk about today",
+    "what can we talk about",
     
     // Common AI responses
     "what would you like to talk about",
@@ -101,6 +132,8 @@ export class AISpeechFilter {
     "how can i help you",
     "i'm here to help",
     "i am here to help",
+    "i'm here to listen",
+    "i am here to listen",
     "let's practice english",
     "feel free to ask",
     "please feel free",
@@ -109,6 +142,10 @@ export class AISpeechFilter {
     "let me help you",
     "i understand",
     "i see",
+    "got it",
+    "tell me more",
+    "go ahead",
+    "i'm listening",
     
     // Error messages
     "i'm sorry",
@@ -118,6 +155,8 @@ export class AISpeechFilter {
     "could you please repeat",
     "please try again",
     "let me try again",
+    "i didn't catch that",
+    "i did not catch that",
     
     // Transition phrases
     "speaking of",
@@ -126,12 +165,22 @@ export class AISpeechFilter {
     "furthermore",
     "additionally",
     "in other words",
+    "you mentioned",
     
     // Closing phrases
     "is there anything else",
     "anything else i can help",
     "do you have any other questions",
-    "feel free to ask more"
+    "feel free to ask more",
+    "what else would you like",
+    
+    // Common fragments from echo
+    "viewers loved it and it was renewed",
+    "western drama",
+    "tv thing for robin",
+    "just listening",
+    "what's on your mind",
+    "share something specific"
   ]
 
   private static recentAIResponses: string[] = []
@@ -277,9 +326,10 @@ export class VoiceSynthesisStateManager {
           return
         }
 
-        if (attempts < 10) {
-          // Retry with exponential backoff
-          setTimeout(() => loadVoicesWithRetry(attempts + 1), 100 * Math.pow(2, attempts))
+        if (attempts < 15) {
+          // Retry with exponential backoff, max 3 seconds between attempts
+          const delay = Math.min(100 * Math.pow(1.5, attempts), 3000)
+          setTimeout(() => loadVoicesWithRetry(attempts + 1), delay)
         } else {
           // Give up but mark as loaded anyway (some browsers don't report voices)
           console.warn('VoiceSynthesisStateManager: No voices found after retries')
@@ -294,7 +344,12 @@ export class VoiceSynthesisStateManager {
       // Also listen for the voiceschanged event
       window.speechSynthesis.onvoiceschanged = () => {
         if (!this.voicesLoaded) {
-          loadVoicesWithRetry()
+          const voices = window.speechSynthesis.getVoices()
+          if (voices.length > 0) {
+            this.voicesLoaded = true
+            console.log(`VoiceSynthesisStateManager: Loaded ${voices.length} voices via event`)
+            resolve()
+          }
         }
       }
     })
