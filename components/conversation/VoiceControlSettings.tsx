@@ -1,15 +1,52 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface VoiceControlSettingsProps {
   onModeChange: (mode: 'continuous' | 'push-to-talk') => void
   onSensitivityChange: (sensitivity: number) => void
+  onSilenceThresholdChange?: (threshold: number) => void
+  onPatientModeChange?: (enabled: boolean) => void
 }
 
-export default function VoiceControlSettings({ onModeChange, onSensitivityChange }: VoiceControlSettingsProps) {
-  const [mode, setMode] = useState<'continuous' | 'push-to-talk'>('continuous')
+export default function VoiceControlSettings({ 
+  onModeChange, 
+  onSensitivityChange,
+  onSilenceThresholdChange,
+  onPatientModeChange
+}: VoiceControlSettingsProps) {
+  const [mode, setMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
   const [sensitivity, setSensitivity] = useState(3) // 1-5 scale
+  const [silenceThreshold, setSilenceThreshold] = useState(8) // 3-15 seconds
+  const [patientMode, setPatientMode] = useState(false)
+
+  // Load saved preferences on mount
+  useEffect(() => {
+    const savedMode = localStorage.getItem('voice_control_mode') as 'continuous' | 'push-to-talk'
+    const savedSensitivity = localStorage.getItem('voice_sensitivity')
+    const savedThreshold = localStorage.getItem('silence_threshold')
+    const savedPatientMode = localStorage.getItem('patient_mode')
+    
+    if (savedMode) {
+      setMode(savedMode)
+      onModeChange(savedMode)
+    }
+    if (savedSensitivity) {
+      const value = Number(savedSensitivity)
+      setSensitivity(value)
+      onSensitivityChange(value)
+    }
+    if (savedThreshold) {
+      const value = Number(savedThreshold)
+      setSilenceThreshold(value)
+      onSilenceThresholdChange?.(value)
+    }
+    if (savedPatientMode) {
+      const enabled = savedPatientMode === 'true'
+      setPatientMode(enabled)
+      onPatientModeChange?.(enabled)
+    }
+  }, [])
 
   const handleModeChange = (newMode: 'continuous' | 'push-to-talk') => {
     setMode(newMode)
@@ -21,6 +58,23 @@ export default function VoiceControlSettings({ onModeChange, onSensitivityChange
     setSensitivity(value)
     onSensitivityChange(value)
     localStorage.setItem('voice_sensitivity', value.toString())
+  }
+
+  const handleSilenceThresholdChange = (value: number) => {
+    setSilenceThreshold(value)
+    onSilenceThresholdChange?.(value)
+    localStorage.setItem('silence_threshold', value.toString())
+  }
+
+  const handlePatientModeChange = (enabled: boolean) => {
+    setPatientMode(enabled)
+    onPatientModeChange?.(enabled)
+    localStorage.setItem('patient_mode', enabled.toString())
+    
+    // If enabling patient mode, set threshold to maximum
+    if (enabled && silenceThreshold < 12) {
+      handleSilenceThresholdChange(12)
+    }
   }
 
   return (
@@ -81,6 +135,47 @@ export default function VoiceControlSettings({ onModeChange, onSensitivityChange
           </p>
         </div>
       )}
+
+      <div className="mb-4">
+        <label className="block text-sm text-gray-300 mb-2">
+          Silence Detection Threshold
+        </label>
+        <div className="flex items-center gap-4">
+          <input
+            type="range"
+            min="3"
+            max="15"
+            step="0.5"
+            value={silenceThreshold}
+            onChange={(e) => handleSilenceThresholdChange(Number(e.target.value))}
+            className="flex-1"
+            disabled={patientMode}
+          />
+          <span className="text-sm font-mono bg-charcoal px-2 py-1 rounded min-w-[3rem] text-center">
+            {silenceThreshold}s
+          </span>
+        </div>
+        <p className="text-xs text-gray-400 mt-1">
+          How long to wait after you stop speaking before processing (for thinking time)
+        </p>
+      </div>
+
+      <div className="mb-4">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={patientMode}
+            onChange={(e) => handlePatientModeChange(e.target.checked)}
+            className="w-4 h-4 text-coral bg-charcoal border-gray-600 rounded focus:ring-coral"
+          />
+          <div>
+            <span className="text-sm text-gray-300">Patient Mode</span>
+            <p className="text-xs text-gray-400">
+              Extra long pauses for language learners (12+ seconds)
+            </p>
+          </div>
+        </label>
+      </div>
 
       <div className="bg-charcoal p-3 rounded text-sm">
         <p className="text-yellow-400 font-semibold mb-1">Tip to Avoid Feedback:</p>

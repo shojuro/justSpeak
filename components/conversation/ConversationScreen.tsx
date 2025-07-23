@@ -34,6 +34,8 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [showDebugPanel, setShowDebugPanel] = useState(process.env.NODE_ENV === 'development')
   const [voiceControlMode, setVoiceControlMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
   const [voiceSensitivity, setVoiceSensitivity] = useState(3)
+  const [customSilenceThreshold, setCustomSilenceThreshold] = useState<number | null>(null)
+  const [patientMode, setPatientMode] = useState(false)
   const [isWaitingForSilence, setIsWaitingForSilence] = useState(false)
   const [silenceCountdown, setSilenceCountdown] = useState(0)
   const [showMicPermission, setShowMicPermission] = useState(false)
@@ -329,7 +331,13 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     const wordCount = transcript.trim().split(/\s+/).length
     let silenceDelay: number
     
-    if (voiceControlMode === 'push-to-talk') {
+    // Use custom threshold if set, otherwise use defaults
+    if (customSilenceThreshold !== null) {
+      silenceDelay = customSilenceThreshold * 1000 // Convert to milliseconds
+    } else if (patientMode) {
+      // Patient mode: Extra long delays
+      silenceDelay = 12000 // 12 seconds minimum
+    } else if (voiceControlMode === 'push-to-talk') {
       // Push-to-talk: More generous for manual control
       silenceDelay = 5000 // 5 seconds base
     } else {
@@ -471,7 +479,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       setIsWaitingForSilence(false)
       setSilenceCountdown(0)
     }
-  }, [transcript, isAISpeaking, isInitializing, voiceControlMode, stopListening, clearTranscript])
+  }, [transcript, isAISpeaking, isInitializing, voiceControlMode, customSilenceThreshold, patientMode, stopListening, clearTranscript])
 
   const addUserMessage = (content: string) => {
     const message: Message = {
@@ -729,6 +737,8 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
             <VoiceControlSettings
               onModeChange={setVoiceControlMode}
               onSensitivityChange={setVoiceSensitivity}
+              onSilenceThresholdChange={setCustomSilenceThreshold}
+              onPatientModeChange={setPatientMode}
             />
             <ProviderSelector
               voiceProvider={voiceProvider}
