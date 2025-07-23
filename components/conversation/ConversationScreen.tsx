@@ -14,6 +14,7 @@ import MicrophonePermission from '@/components/MicrophonePermission'
 import { ERROR_MESSAGES } from '@/lib/constants'
 import { logger } from '@/lib/logger'
 import { detectSentenceCompletion, shouldProcessTranscript } from '@/lib/speech-utils'
+import { SpeechSessionManager, AISpeechFilter, VoiceSynthesisStateManager } from '@/lib/speech-session-manager'
 
 interface ConversationScreenProps {
   onEnd: (talkTime: number) => void
@@ -55,11 +56,14 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const listeningTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastTranscriptRef = useRef<string>('')
   const greetingSentRef = useRef<boolean>(false)
+  const speechSessionRef = useRef<SpeechSessionManager>(new SpeechSessionManager())
+  const voiceSynthManagerRef = useRef(VoiceSynthesisStateManager.getInstance())
 
   // Track if AI is currently speaking (more robust than isSpeaking)
   const [isAISpeaking, setIsAISpeaking] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
   const [isVoiceLoading, setIsVoiceLoading] = useState(true)
+  const [isSpeakingLocked, setIsSpeakingLocked] = useState(false) // Prevents ANY mic activation
   
   // Speech hooks with API support
   const { 
@@ -79,15 +83,17 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   
   // Wrapped startListening that checks if AI is speaking
   const startListening = useCallback(() => {
-    if (!isAISpeaking) {
+    if (!isAISpeaking && !isSpeakingLocked) {
+      // Start a new speech session
+      speechSessionRef.current.startSession()
       // Reset transcript tracking
       lastTranscriptRef.current = ''
       clearTranscript()
       _startListening()
     } else {
-      logger.debug('Cannot start listening - AI is speaking')
+      logger.debug('Cannot start listening - AI is speaking or locked', { isAISpeaking, isSpeakingLocked })
     }
-  }, [_startListening, isAISpeaking, clearTranscript])
+  }, [_startListening, isAISpeaking, isSpeakingLocked, clearTranscript])
   
   const { 
     speak: _speak, 
@@ -106,20 +112,34 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   // Wrapped speak function that manages AI speaking state
   const speak = useCallback(async (text: string) => {
     logger.debug('AI speaking', { preview: text.substring(0, 50) + '...' })
+    
+    // Add this response to the AI speech filter
+    AISpeechFilter.addAIResponse(text)
+    
+    // Set speaking lock IMMEDIATELY
+    setIsSpeakingLocked(true)
     setIsAISpeaking(true)
+    
     // Force stop any listening
     if (isListening) {
       stopListening()
+      // End any active speech session
+      speechSessionRef.current.endSession()
     }
     
     try {
       await _speak(text)
     } finally {
-      // Add longer delay before allowing microphone to restart
+      // Add much longer delay before allowing microphone to restart
       setTimeout(() => {
-        logger.debug('AI finished speaking, waiting before enabling mic')
+        logger.debug('AI finished speaking, extended wait before enabling mic')
         setIsAISpeaking(false)
-      }, 1500) // Increased from 500ms to 1.5s
+        // Additional delay before unlocking
+        setTimeout(() => {
+          logger.debug('Unlocking microphone after extended delay')
+          setIsSpeakingLocked(false)
+        }, 2000) // 2s after speech ends
+      }, 1000) // 1s buffer
     }
   }, [_speak, isListening, stopListening])
 
@@ -149,38 +169,31 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       stopListening()
     }
     
-    // Wait for speech synthesis to be ready with retry logic
-    const maxRetries = 10
-    let retryCount = 0
-    
-    const attemptSpeak = async () => {
+    // Initialize voice synthesis properly before speaking
+    const initAndSpeak = async () => {
       try {
-        // Check if synthesis is ready
-        if (isSynthReady && window.speechSynthesis) {
-          logger.debug('Speech synthesis ready, speaking greeting')
+        setIsVoiceLoading(true)
+        
+        // Initialize voice synthesis manager
+        const synthReady = await voiceSynthManagerRef.current.initialize()
+        
+        if (synthReady) {
+          logger.debug('Voice synthesis fully initialized, speaking greeting')
           setIsVoiceLoading(false)
           await speak(greeting)
-        } else if (retryCount < maxRetries) {
-          retryCount++
-          logger.debug(`Speech synthesis not ready, retry ${retryCount}/${maxRetries}`)
-          // Exponential backoff: 100ms, 200ms, 400ms, etc.
-          setTimeout(attemptSpeak, Math.min(100 * Math.pow(2, retryCount - 1), 3000))
         } else {
-          logger.warn('Speech synthesis failed to initialize after retries')
+          logger.warn('Voice synthesis initialization failed - text only mode')
           setIsVoiceLoading(false)
-          // Fallback to text-only mode after 5 seconds
-          logger.warn('Voice synthesis unavailable - falling back to text mode')
         }
       } catch (err) {
-        logger.error('Failed to speak greeting', err as Error)
+        logger.error('Failed to initialize voice synthesis', err as Error)
         setIsVoiceLoading(false)
-        // Continue anyway - text is still shown
       }
     }
     
-    // Start attempting after initial delay
-    setTimeout(attemptSpeak, 500)
-  }, [speak, isListening, stopListening, isSynthReady, setIsVoiceLoading])
+    // Start initialization after a brief delay
+    setTimeout(initAndSpeak, 1000)
+  }, [speak, isListening, stopListening])
 
   // Initialize providers and start session
   useEffect(() => {
@@ -271,7 +284,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Use spacebar for push-to-talk
-      if (e.code === 'Space' && !e.repeat && !isListening && !isAISpeaking) {
+      if (e.code === 'Space' && !e.repeat && !isListening && !isAISpeaking && !isSpeakingLocked) {
         e.preventDefault()
         logger.debug('Push-to-talk: Starting listening')
         startListening()
@@ -294,7 +307,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [voiceControlMode, isListening, isAISpeaking, startListening, stopListening])
+  }, [voiceControlMode, isListening, isAISpeaking, isSpeakingLocked, startListening, stopListening])
 
   // Track user speaking time and listening duration
   useEffect(() => {
@@ -340,9 +353,12 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     }
   }, [isAISpeaking, isListening, stopListening])
 
-  // Simple silence-based transcript processing
+  // Transcript processing with session management
   useEffect(() => {
-    if (!transcript || processingRef.current || isAISpeaking || isInitializing) return
+    if (!transcript || processingRef.current || isAISpeaking || isInitializing || isSpeakingLocked) return
+    
+    // Add transcript to session
+    speechSessionRef.current.addTranscript(transcript, false)
     
     // Clear existing timer
     if (silenceTimerRef.current) {
@@ -447,25 +463,19 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       
       const finalTranscript = transcript.trim()
       
+      // Get the full session transcript
+      const sessionTranscript = speechSessionRef.current.endSession()
+      const finalTranscript = sessionTranscript || transcript.trim()
+      
       // Process if we have content and it's different from last processed
       if (finalTranscript && finalTranscript !== lastTranscriptRef.current) {
-        // Check if this is the AI's own speech (greeting or common AI phrases)
-        const lowerContent = finalTranscript.toLowerCase()
-        const aiPhrases = [
-          "hello i'm talktime",
-          "hello i am talktime",
-          "friendly english conversation partner",
-          "what would you like to talk about",
-          "how can i help you",
-          "i'm here to help",
-          "let's practice english",
-          "feel free to ask"
-        ]
-        
-        if (aiPhrases.some(phrase => lowerContent.includes(phrase))) {
-          console.log('Ignoring AI\'s own speech:', finalTranscript.substring(0, 50))
+        // Check if this is the AI's own speech using the filter
+        if (AISpeechFilter.isAISpeech(finalTranscript)) {
+          console.log('Filtered out AI speech:', finalTranscript.substring(0, 50))
           clearTranscript()
           processingRef.current = false
+          setIsWaitingForSilence(false)
+          setSilenceCountdown(0)
           return
         }
         
@@ -505,7 +515,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       setIsWaitingForSilence(false)
       setSilenceCountdown(0)
     }
-  }, [transcript, isAISpeaking, isInitializing, voiceControlMode, customSilenceThreshold, patientMode, stopListening, clearTranscript])
+  }, [transcript, isAISpeaking, isInitializing, isSpeakingLocked, voiceControlMode, customSilenceThreshold, patientMode, stopListening, clearTranscript])
 
   const addUserMessage = (content: string) => {
     const message: Message = {
@@ -620,7 +630,9 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const handleMicrophoneToggle = async () => {
     if (isListening) {
       stopListening()
-    } else {
+      // End speech session when manually stopping
+      speechSessionRef.current.endSession()
+    } else if (!isSpeakingLocked && !isAISpeaking) {
       // Check if we've already verified permission
       if (!micPermissionGranted) {
         // Test for permission
@@ -637,6 +649,8 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       } else {
         startListening()
       }
+    } else {
+      logger.debug('Cannot toggle microphone - AI is speaking', { isAISpeaking, isSpeakingLocked })
     }
   }
 
@@ -729,6 +743,18 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         </div>
       )}
       
+      {/* AI Speaking Lock Indicator */}
+      {isSpeakingLocked && (
+        <div className="absolute bottom-56 sm:bottom-64 left-1/2 transform -translate-x-1/2 bg-red-500/20 px-4 sm:px-6 py-2 sm:py-3 rounded-full mx-4 flex items-center gap-2">
+          <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          <p className="text-xs sm:text-sm text-red-400">
+            Microphone locked - AI speaking
+          </p>
+        </div>
+      )}
+      
       {/* Still listening indicator - shows after 3 seconds */}
       {isListening && listeningDuration >= 3 && !isWaitingForSilence && !isInitializing && (
         <div className="absolute bottom-40 sm:bottom-48 left-1/2 transform -translate-x-1/2 bg-jet/80 px-3 sm:px-4 py-2 rounded-full mx-4">
@@ -756,6 +782,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         mode={mode}
         isListening={isListening}
         isSpeaking={isAISpeaking}
+        isLocked={isSpeakingLocked}
         speechError={speechError || synthError}
         userTime={Math.floor(userSpeakingTime)}
         voiceControlMode={voiceControlMode}

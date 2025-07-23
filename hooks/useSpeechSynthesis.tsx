@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useToast } from '@/components/ui/Toast'
+import { VoiceSynthesisStateManager } from '@/lib/speech-session-manager'
 
 interface UseSpeechSynthesisProps {
   provider?: 'browser' | 'openai' | 'elevenlabs'
@@ -25,48 +26,45 @@ export function useSpeechSynthesis({
   const [error, setError] = useState<string | null>(null)
   const [isReady, setIsReady] = useState(false)
   const { showToast } = useToast()
+  const synthManagerRef = useRef(VoiceSynthesisStateManager.getInstance())
+  const initPromiseRef = useRef<Promise<boolean> | null>(null)
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      setIsSupported(true)
-      console.log('Speech synthesis supported, loading voices...')
-      
-      const loadVoices = () => {
-        const availableVoices = window.speechSynthesis.getVoices()
-        console.log('Available voices:', availableVoices.length)
-        setVoices(availableVoices)
-        if (availableVoices.length > 0) {
-          setIsReady(true)
+    const initializeSynthesis = async () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        setIsSupported(true)
+        console.log('Speech synthesis supported, initializing...')
+        
+        // Initialize through state manager
+        if (!initPromiseRef.current) {
+          initPromiseRef.current = synthManagerRef.current.initialize()
         }
-      }
-
-      // Load voices immediately
-      loadVoices()
-      
-      // Also listen for voices changed event
-      window.speechSynthesis.onvoiceschanged = loadVoices
-      
-      // Force load voices on some browsers
-      if (window.speechSynthesis.getVoices().length === 0) {
-        // Speak empty string to trigger voice loading
-        const utterance = new SpeechSynthesisUtterance('')
-        utterance.volume = 0
-        window.speechSynthesis.speak(utterance)
-        window.speechSynthesis.cancel()
-      }
-      
-      // Set ready after a delay if voices still haven't loaded
-      setTimeout(() => {
-        if (!isReady) {
-          console.log('Setting speech synthesis ready after timeout (forced)')
-          setIsReady(true)
-          setIsSupported(true) // Force supported
+        
+        const initialized = await initPromiseRef.current
+        const state = synthManagerRef.current.getReadyState()
+        
+        console.log('Speech synthesis initialization result:', state)
+        
+        // Load voices for the UI
+        const loadVoices = () => {
+          const availableVoices = window.speechSynthesis.getVoices()
+          console.log('Available voices:', availableVoices.length)
+          setVoices(availableVoices)
         }
-      }, 1000) // Increased to 1 second
-    } else {
-      console.error('Speech synthesis not available in window')
-      setIsSupported(false)
+        
+        loadVoices()
+        window.speechSynthesis.onvoiceschanged = loadVoices
+        
+        // Set ready based on manager state
+        setIsReady(state.isReady)
+      } else {
+        console.error('Speech synthesis not available in window')
+        setIsSupported(false)
+        setIsReady(false)
+      }
     }
+    
+    initializeSynthesis()
   }, [])
 
   const speakWithBrowser = useCallback((text: string) => {

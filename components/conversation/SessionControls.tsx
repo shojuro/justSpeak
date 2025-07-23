@@ -4,6 +4,7 @@ interface SessionControlsProps {
   mode: 'conversation' | 'learning'
   isListening: boolean
   isSpeaking: boolean
+  isLocked?: boolean
   speechError: any
   userTime: number
   voiceControlMode?: 'continuous' | 'push-to-talk'
@@ -17,6 +18,7 @@ export default function SessionControls({
   mode,
   isListening,
   isSpeaking,
+  isLocked = false,
   speechError,
   userTime,
   voiceControlMode = 'continuous',
@@ -136,28 +138,43 @@ export default function SessionControls({
             {/* Microphone button */}
             <button
               onClick={onMicrophoneToggle}
-              disabled={isSpeaking}
+              disabled={isSpeaking || isLocked}
               className={`relative p-4 sm:p-5 rounded-full transition-all transform ${
-                isListening
+                isLocked
+                  ? 'bg-red-500/20 text-red-400 cursor-not-allowed'
+                  : isListening
                   ? 'bg-warm-coral text-white scale-110 shadow-lg'
                   : 'bg-warm-coral-light text-jet hover:bg-warm-coral hover:text-white'
-              } ${isSpeaking ? 'opacity-50 cursor-not-allowed' : ''}`}
-              aria-label={isListening ? 'Stop recording' : 'Start recording'}
+              } ${isSpeaking || isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+              aria-label={isLocked ? 'Microphone locked' : isListening ? 'Stop recording' : 'Start recording'}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className={`w-7 h-7 sm:w-6 sm:h-6 ${isListening ? 'animate-pulse' : ''}`}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
-                />
-              </svg>
+              {isLocked ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-7 h-7 sm:w-6 sm:h-6"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className={`w-7 h-7 sm:w-6 sm:h-6 ${isListening ? 'animate-pulse' : ''}`}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
+                  />
+                </svg>
+              )}
               
               {/* Live indicator dot */}
               {isListening && (
