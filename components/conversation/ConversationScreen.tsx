@@ -51,6 +51,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   // Track if AI is currently speaking (more robust than isSpeaking)
   const [isAISpeaking, setIsAISpeaking] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
+  const [isVoiceLoading, setIsVoiceLoading] = useState(true)
   
   // Speech hooks with API support
   const { 
@@ -84,7 +85,8 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     speak: _speak, 
     isSpeaking, 
     stop: stopSpeaking,
-    error: synthError 
+    error: synthError,
+    isReady: isSynthReady 
   } = useSpeechSynthesis({
     provider: synthProvider,
     voice: synthProvider === 'elevenlabs' ? elevenLabsVoiceId : 'nova',
@@ -139,21 +141,38 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       stopListening()
     }
     
-    // Add delay to ensure speech synthesis is ready
-    setTimeout(async () => {
+    // Wait for speech synthesis to be ready with retry logic
+    const maxRetries = 10
+    let retryCount = 0
+    
+    const attemptSpeak = async () => {
       try {
-        // Check if speechSynthesis is available
-        if (window.speechSynthesis) {
+        // Check if synthesis is ready
+        if (isSynthReady && window.speechSynthesis) {
+          logger.debug('Speech synthesis ready, speaking greeting')
+          setIsVoiceLoading(false)
           await speak(greeting)
+        } else if (retryCount < maxRetries) {
+          retryCount++
+          logger.debug(`Speech synthesis not ready, retry ${retryCount}/${maxRetries}`)
+          // Exponential backoff: 100ms, 200ms, 400ms, etc.
+          setTimeout(attemptSpeak, Math.min(100 * Math.pow(2, retryCount - 1), 3000))
         } else {
-          logger.debug('Speech synthesis not ready yet, skipping audio')
+          logger.warn('Speech synthesis failed to initialize after retries')
+          setIsVoiceLoading(false)
+          // Fallback to text-only mode after 5 seconds
+          logger.warn('Voice synthesis unavailable - falling back to text mode')
         }
       } catch (err) {
         logger.error('Failed to speak greeting', err as Error)
+        setIsVoiceLoading(false)
         // Continue anyway - text is still shown
       }
-    }, 1500) // Increased delay to ensure readiness
-  }, [speak, isListening, stopListening])
+    }
+    
+    // Start attempting after initial delay
+    setTimeout(attemptSpeak, 500)
+  }, [speak, isListening, stopListening, isSynthReady, setIsVoiceLoading])
 
   // Initialize providers and start session
   useEffect(() => {
@@ -568,6 +587,15 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         <div className="absolute top-16 sm:top-20 left-1/2 transform -translate-x-1/2 bg-warm-coral/20 px-4 sm:px-6 py-2 sm:py-3 rounded-full mx-4">
           <p className="text-xs sm:text-sm text-warm-coral animate-pulse whitespace-nowrap">
             Initializing... Please wait
+          </p>
+        </div>
+      )}
+      
+      {/* Voice loading indicator */}
+      {!isInitializing && isVoiceLoading && (
+        <div className="absolute top-16 sm:top-20 left-1/2 transform -translate-x-1/2 bg-blue-500/20 px-4 sm:px-6 py-2 sm:py-3 rounded-full mx-4">
+          <p className="text-xs sm:text-sm text-blue-400 animate-pulse whitespace-nowrap">
+            Loading voices...
           </p>
         </div>
       )}
