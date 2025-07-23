@@ -42,7 +42,7 @@ export default function Home() {
   }
 
   return (
-    <main className="h-screen overflow-hidden">
+    <main className="h-full overflow-hidden relative">
       {appState === 'welcome' && (
         <WelcomeScreen onStart={handleStartConversation} />
       )}

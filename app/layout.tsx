@@ -11,6 +11,24 @@ export const metadata: Metadata = {
   title: 'TalkTime - Practice English Conversation',
   description: 'A judgment-free conversation partner that helps you practice speaking English',
   manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'TalkTime',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    title: 'TalkTime - Practice English Conversation',
+    description: 'A judgment-free conversation partner that helps you practice speaking English',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'TalkTime - Practice English Conversation',
+    description: 'A judgment-free conversation partner that helps you practice speaking English',
+  },
 }
 
 export const viewport = {
@@ -29,11 +47,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
-      <body className={`${inter.className} h-full`}>
+      <body className={`${inter.className} h-full mobile-viewport`}>
         <ErrorBoundary>
           <AuthProvider>
             <ToastProvider>
-              {children}
+              <div className="h-full safe-top safe-bottom safe-left safe-right">
+                {children}
+              </div>
             </ToastProvider>
           </AuthProvider>
         </ErrorBoundary>

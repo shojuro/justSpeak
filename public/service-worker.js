@@ -7,8 +7,8 @@ const staticAssets = [
   '/',
   '/offline.html',
   '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 // Install event - cache core assets
@@ -152,8 +152,8 @@ self.addEventListener('push', (event) => {
     const data = event.data.json();
     const options = {
       body: data.body,
-      icon: '/icon-192x192.png',
-      badge: '/icon-192x192.png',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
       vibrate: [200, 100, 200],
       data: data.data || {}
     };

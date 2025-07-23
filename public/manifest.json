@@ -7,12 +7,45 @@
   "background_color": "#2C2C2E",
   "theme_color": "#FF6B7A",
   "orientation": "portrait",
+  "scope": "/",
+  "lang": "en-US",
+  "categories": ["education", "productivity"],
   "icons": [
+    {
+      "src": "/icon-72.svg",
+      "sizes": "72x72",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon-96.svg",
+      "sizes": "96x96",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon-128.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon-144.svg",
+      "sizes": "144x144",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon-152.svg",
+      "sizes": "152x152",
+      "type": "image/svg+xml"
+    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-384.svg",
+      "sizes": "384x384",
+      "type": "image/svg+xml"
     },
     {
       "src": "/icon-512.png",
@@ -21,6 +54,15 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education", "productivity"],
-  "lang": "en-US"
+  "shortcuts": [
+    {
+      "name": "Start Conversation",
+      "short_name": "Talk",
+      "description": "Start a new conversation",
+      "url": "/",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": []
 }

@@ -78,6 +78,21 @@
   .animate-scale-check {
     animation: scale-check 0.3s ease-out;
   }
+
+  @keyframes slide-up {
+    0% {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
 }
 
 @layer base {
@@ -136,17 +151,21 @@
     user-select: text;
   }
 
-  /* Improve tap targets on mobile */
-  @media (max-width: 768px) {
-    button {
-      min-height: 44px;
-      min-width: 44px;
-    }
+  /* Mobile-first touch targets */
+  button, 
+  a,
+  [role="button"] {
+    @apply min-h-touch min-w-touch;
+    touch-action: manipulation;
   }
 
-  /* Prevent double-tap zoom on buttons */
-  button {
-    touch-action: manipulation;
+  /* Desktop adjustments */
+  @media (min-width: 768px) {
+    button,
+    a,
+    [role="button"] {
+      @apply min-h-[auto] min-w-[auto];
+    }
   }
 
   /* Safe area insets for notched devices */
@@ -157,5 +176,42 @@
     .safe-bottom {
       padding-bottom: max(1rem, env(safe-area-inset-bottom));
     }
+    .safe-left {
+      padding-left: max(1rem, env(safe-area-inset-left));
+    }
+    .safe-right {
+      padding-right: max(1rem, env(safe-area-inset-right));
+    }
+  }
+
+  /* Mobile-optimized scrolling */
+  .smooth-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Prevent accidental selection on mobile */
+  .no-select {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Mobile-friendly focus states */
+  button:focus,
+  a:focus,
+  [role="button"]:focus {
+    @apply outline-none ring-2 ring-warm-coral ring-offset-2 ring-offset-deep-charcoal;
+  }
+
+  /* Optimize for mobile performance */
+  .will-change-transform {
+    will-change: transform;
+  }
+
+  /* Prevent layout shift on mobile keyboards */
+  .mobile-viewport {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height */
   }
 }

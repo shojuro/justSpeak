@@ -10,6 +10,7 @@ import ConversationHeader from './ConversationHeader'
 import ProviderSelector from './ProviderSelector'
 import VoiceControlSettings from './VoiceControlSettings'
 import VoiceDebugPanel from '@/components/VoiceDebugPanel'
+import MicrophonePermission from '@/components/MicrophonePermission'
 import { SESSION_CONFIG, ERROR_MESSAGES } from '@/lib/constants'
 import { logger } from '@/lib/logger'
 
@@ -29,10 +30,12 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [synthProvider, setSynthProvider] = useState<'browser' | 'openai' | 'elevenlabs'>('browser')
   const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState('1t1EeRixsJrKbiF1zwM6') // Jerry B. voice
   const [showProviderSettings, setShowProviderSettings] = useState(false)
-  const [showDebugPanel, setShowDebugPanel] = useState(true) // Show debug panel by default
+  const [showDebugPanel, setShowDebugPanel] = useState(process.env.NODE_ENV === 'development')
   const [voiceControlMode, setVoiceControlMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
   const [voiceSensitivity, setVoiceSensitivity] = useState(3)
   const [isWaitingForSilence, setIsWaitingForSilence] = useState(false)
+  const [showMicPermission, setShowMicPermission] = useState(false)
+  const [micPermissionGranted, setMicPermissionGranted] = useState(false)
   
   // Refs for tracking time
   const talkStartRef = useRef<Date | null>(null)
@@ -470,16 +473,37 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     if (isListening) {
       stopListening()
     } else {
-      // Check microphone permission first
-      try {
-        await navigator.mediaDevices.getUserMedia({ audio: true })
+      // Check if we've already verified permission
+      if (!micPermissionGranted) {
+        // Test for permission
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          stream.getTracks().forEach(track => track.stop())
+          setMicPermissionGranted(true)
+          startListening()
+        } catch (err) {
+          // Show permission dialog
+          setShowMicPermission(true)
+          logger.error('Microphone permission needed', err as Error)
+        }
+      } else {
         startListening()
-      } catch (err) {
-        logger.error('Microphone permission denied', err as Error)
-        // The error will be shown in the voice recognition hook
-        startListening() // Still try to start, the hook will handle the error
       }
     }
+  }
+
+  const handlePermissionGranted = () => {
+    setMicPermissionGranted(true)
+    setShowMicPermission(false)
+    // Start listening after permission is granted
+    setTimeout(() => {
+      startListening()
+    }, 500)
+  }
+
+  const handlePermissionDenied = () => {
+    setShowMicPermission(false)
+    // Show error in UI via speech error state
   }
 
   const handleProviderChange = (type: 'stt' | 'tts', provider: string) => {
@@ -530,7 +554,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-jet text-white">
+    <div className="flex flex-col h-full bg-jet text-white relative">
       <ConversationHeader talkTime={talkTime} />
       
       <MessageList 
@@ -539,19 +563,19 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         mode={mode}
       />
       
-      {/* Show initialization indicator */}
+      {/* Mobile-friendly initialization indicator */}
       {isInitializing && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-warm-coral/20 px-6 py-3 rounded-full">
-          <p className="text-sm text-warm-coral animate-pulse">
+        <div className="absolute top-16 sm:top-20 left-1/2 transform -translate-x-1/2 bg-warm-coral/20 px-4 sm:px-6 py-2 sm:py-3 rounded-full mx-4">
+          <p className="text-xs sm:text-sm text-warm-coral animate-pulse whitespace-nowrap">
             Initializing... Please wait
           </p>
         </div>
       )}
       
-      {/* Show waiting indicator */}
+      {/* Mobile-friendly waiting indicator */}
       {isWaitingForSilence && isListening && !isInitializing && (
-        <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 bg-dark-gray/90 px-4 py-2 rounded-full">
-          <p className="text-sm text-warm-coral animate-pulse">
+        <div className="absolute bottom-24 sm:bottom-32 left-1/2 transform -translate-x-1/2 bg-dark-gray/90 px-3 sm:px-4 py-2 rounded-full mx-4">
+          <p className="text-xs sm:text-sm text-warm-coral animate-pulse">
             Listening... (waiting for you to finish)
           </p>
         </div>
@@ -570,9 +594,10 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         onProviderSettings={() => setShowProviderSettings(true)}
       />
       
+      {/* Mobile-optimized modal */}
       {showProviderSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-gray rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50">
+          <div className="bg-dark-gray rounded-t-2xl sm:rounded-lg w-full sm:max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto animate-slide-up sm:animate-none">
             <VoiceControlSettings
               onModeChange={setVoiceControlMode}
               onSensitivityChange={setVoiceSensitivity}
@@ -587,12 +612,23 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         </div>
       )}
       
+      {/* Debug panel - hidden on mobile by default */}
       {showDebugPanel && (speechError || synthError || !isListening) && (
-        <VoiceDebugPanel
-          error={speechError || synthError}
-          isListening={isListening}
-          isSpeaking={isSpeaking}
-          transcript={transcript}
+        <div className="hidden sm:block">
+          <VoiceDebugPanel
+            error={speechError || synthError}
+            isListening={isListening}
+            isSpeaking={isSpeaking}
+            transcript={transcript}
+          />
+        </div>
+      )}
+      
+      {/* Microphone permission dialog */}
+      {showMicPermission && (
+        <MicrophonePermission
+          onPermissionGranted={handlePermissionGranted}
+          onPermissionDenied={handlePermissionDenied}
         />
       )}
     </div>

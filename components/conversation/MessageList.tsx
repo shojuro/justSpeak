@@ -50,25 +50,25 @@ export default function MessageList({ messages, isAIThinking, mode, isLoading = 
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 smooth-scroll">
       {messages.map((message) => (
         <div
           key={message.id}
           className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}
         >
           <div
-            className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 ${
+            className={`max-w-[90%] xs:max-w-[85%] sm:max-w-[75%] rounded-2xl p-3 sm:p-4 ${
               message.role === 'user'
                 ? 'bg-warm-coral text-white'
                 : 'bg-warm-coral-light text-jet'
-            }`}
+            } shadow-sm`}
           >
-            <p className="whitespace-pre-wrap text-sm sm:text-base">{message.content}</p>
+            <p className="whitespace-pre-wrap text-sm sm:text-base message-content">{message.content}</p>
             <p className="text-xs mt-2 opacity-70">
-              {message.timestamp.toLocaleTimeString()}
+              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </p>
             {message.assessment && mode === 'learning' && (
-              <div className="mt-4">
+              <div className="mt-3 sm:mt-4">
                 <AssessmentDisplay assessment={message.assessment} />
               </div>
             )}
@@ -78,7 +78,7 @@ export default function MessageList({ messages, isAIThinking, mode, isLoading = 
       
       {isAIThinking && (
         <div className="flex justify-start animate-fade-in">
-          <div className="bg-warm-coral-light rounded-2xl p-4 max-w-[85%] sm:max-w-[75%]">
+          <div className="bg-warm-coral-light rounded-2xl p-3 sm:p-4 max-w-[90%] xs:max-w-[85%] sm:max-w-[75%] shadow-sm">
             <div className="flex space-x-2">
               <div className="w-2 h-2 bg-jet/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
               <div className="w-2 h-2 bg-jet/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
@@ -88,7 +88,7 @@ export default function MessageList({ messages, isAIThinking, mode, isLoading = 
         </div>
       )}
       
-      <div ref={messagesEndRef} />
+      <div ref={messagesEndRef} className="h-4" />
     </div>
   )
 }
