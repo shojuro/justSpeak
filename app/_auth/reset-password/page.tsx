@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthContext'
 import { useFormValidation, validators } from '@/lib/form-validation'
 import { FormField, Input, SubmitButton } from '@/components/ui/Form'
 import { auth } from '@/lib/auth'

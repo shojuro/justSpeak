@@ -9,7 +9,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import { FeedbackButton } from '@/components/ui/FeedbackButton'
 
 function APISettingsContent() {
-  const { user } = useAuth()
+  useAuth() // Just for auth check
   const [apiStatus, setApiStatus] = useState<APIStatus | null>(null)
   const [selectedProviders, setSelectedProviders] = useState({
     chat: 'openai',
