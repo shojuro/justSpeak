@@ -34,6 +34,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [voiceControlMode, setVoiceControlMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
   const [voiceSensitivity, setVoiceSensitivity] = useState(3)
   const [isWaitingForSilence, setIsWaitingForSilence] = useState(false)
+  const [silenceCountdown, setSilenceCountdown] = useState(0)
   const [showMicPermission, setShowMicPermission] = useState(false)
   const [micPermissionGranted, setMicPermissionGranted] = useState(false)
   
@@ -45,6 +46,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   
   // Speech recognition refs
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastTranscriptRef = useRef<string>('')
   const greetingSentRef = useRef<boolean>(false)
 
@@ -320,12 +322,52 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     // Show waiting indicator
     setIsWaitingForSilence(true)
     
-    // Longer silence detection for complete thoughts
-    const silenceDelay = voiceControlMode === 'push-to-talk' ? 1500 : 3500 // 1.5s for PTT, 3.5s for continuous
+    // Much longer silence detection for language learners
+    // Dynamic thresholds based on utterance length
+    const wordCount = transcript.trim().split(/\s+/).length
+    let silenceDelay: number
+    
+    if (voiceControlMode === 'push-to-talk') {
+      // Push-to-talk: More generous for manual control
+      silenceDelay = 5000 // 5 seconds base
+    } else {
+      // Continuous mode: Dynamic based on speech length
+      if (wordCount < 20) {
+        silenceDelay = 5000 // 5 seconds for short utterances
+      } else if (wordCount < 50) {
+        silenceDelay = 8000 // 8 seconds for medium utterances
+      } else {
+        silenceDelay = 10000 // 10 seconds for long utterances
+      }
+    }
     
     console.log(`Transcript: "${transcript}" | Waiting ${silenceDelay}ms for silence`)
     
+    // Set initial countdown
+    setSilenceCountdown(Math.ceil(silenceDelay / 1000))
+    
+    // Clear any existing countdown
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current)
+    }
+    
+    // Update countdown every second
+    countdownIntervalRef.current = setInterval(() => {
+      setSilenceCountdown(prev => {
+        if (prev <= 1) {
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current)
+          }
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    
     silenceTimerRef.current = setTimeout(() => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current)
+      }
       const finalTranscript = transcript.trim()
       
       // Process if we have content and it's different from last processed
@@ -368,13 +410,18 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       
       // Hide waiting indicator
       setIsWaitingForSilence(false)
+      setSilenceCountdown(0)
     }, silenceDelay)
     
     return () => {
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current)
       }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current)
+      }
       setIsWaitingForSilence(false)
+      setSilenceCountdown(0)
     }
   }, [transcript, isAISpeaking, isInitializing, voiceControlMode, stopListening, clearTranscript])
 
@@ -600,11 +647,16 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         </div>
       )}
       
-      {/* Mobile-friendly waiting indicator */}
+      {/* Mobile-friendly waiting indicator with countdown */}
       {isWaitingForSilence && isListening && !isInitializing && (
         <div className="absolute bottom-24 sm:bottom-32 left-1/2 transform -translate-x-1/2 bg-dark-gray/90 px-3 sm:px-4 py-2 rounded-full mx-4">
-          <p className="text-xs sm:text-sm text-warm-coral animate-pulse">
-            Listening... (waiting for you to finish)
+          <p className="text-xs sm:text-sm text-warm-coral animate-pulse flex items-center gap-2">
+            <span>Listening...</span>
+            {silenceCountdown > 0 && (
+              <span className="font-mono bg-warm-coral/20 px-2 py-0.5 rounded">
+                {silenceCountdown}s
+              </span>
+            )}
           </p>
         </div>
       )}
