@@ -13,6 +13,7 @@ import VoiceDebugPanel from '@/components/VoiceDebugPanel'
 import MicrophonePermission from '@/components/MicrophonePermission'
 import { SESSION_CONFIG, ERROR_MESSAGES } from '@/lib/constants'
 import { logger } from '@/lib/logger'
+import { detectSentenceCompletion, shouldProcessTranscript } from '@/lib/speech-utils'
 
 interface ConversationScreenProps {
   onEnd: (talkTime: number) => void
@@ -47,6 +48,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   // Speech recognition refs
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const earlyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastTranscriptRef = useRef<string>('')
   const greetingSentRef = useRef<boolean>(false)
 
@@ -341,15 +343,51 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       }
     }
     
-    console.log(`Transcript: "${transcript}" | Waiting ${silenceDelay}ms for silence`)
+    // Check sentence completion
+    const completion = detectSentenceCompletion(transcript)
+    console.log(`Transcript: "${transcript}" | Waiting ${silenceDelay}ms | Completion: ${completion.isComplete} (${completion.confidence}) - ${completion.reason}`)
     
-    // Set initial countdown
+    // Set initial countdown (may be shortened by completion detection)
     setSilenceCountdown(Math.ceil(silenceDelay / 1000))
     
     // Clear any existing countdown
     if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current)
     }
+    
+    // Clear any existing early check
+    if (earlyCheckIntervalRef.current) {
+      clearInterval(earlyCheckIntervalRef.current)
+    }
+    
+    // Check for early completion every 500ms
+    let earlyCheckCount = 0
+    earlyCheckIntervalRef.current = setInterval(() => {
+      earlyCheckCount++
+      const elapsedMs = earlyCheckCount * 500
+      
+      // Check if we should process early based on completion
+      if (shouldProcessTranscript(transcript, elapsedMs, silenceDelay)) {
+        console.log(`Early completion detected after ${elapsedMs}ms`)
+        if (earlyCheckIntervalRef.current) {
+          clearInterval(earlyCheckIntervalRef.current)
+        }
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current)
+          // Process immediately
+          silenceTimerRef.current = setTimeout(() => {
+            processTranscript()
+          }, 0)
+        }
+      }
+      
+      // Stop checking after half the silence delay
+      if (elapsedMs >= silenceDelay / 2) {
+        if (earlyCheckIntervalRef.current) {
+          clearInterval(earlyCheckIntervalRef.current)
+        }
+      }
+    }, 500)
     
     // Update countdown every second
     countdownIntervalRef.current = setInterval(() => {
@@ -364,10 +402,15 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       })
     }, 1000)
     
-    silenceTimerRef.current = setTimeout(() => {
+    // Extract processing logic to reuse for early completion
+    const processTranscript = () => {
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current)
       }
+      if (earlyCheckIntervalRef.current) {
+        clearInterval(earlyCheckIntervalRef.current)
+      }
+      
       const finalTranscript = transcript.trim()
       
       // Process if we have content and it's different from last processed
@@ -411,7 +454,9 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       // Hide waiting indicator
       setIsWaitingForSilence(false)
       setSilenceCountdown(0)
-    }, silenceDelay)
+    }
+    
+    silenceTimerRef.current = setTimeout(processTranscript, silenceDelay)
     
     return () => {
       if (silenceTimerRef.current) {
@@ -419,6 +464,9 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       }
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current)
+      }
+      if (earlyCheckIntervalRef.current) {
+        clearInterval(earlyCheckIntervalRef.current)
       }
       setIsWaitingForSilence(false)
       setSilenceCountdown(0)
