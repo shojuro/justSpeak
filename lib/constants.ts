@@ -24,7 +24,7 @@ export const BLOCKED_TOPICS = [
 // OpenAI Configuration
 export const OPENAI_CONFIG = {
   MODEL: 'gpt-3.5-turbo',
-  MAX_TOKENS: 400,
+  MAX_TOKENS: 500, // Increased from 400 for more natural responses
   TEMPERATURE: 0.8,
   FREQUENCY_PENALTY: 0.5,
   PRESENCE_PENALTY: 0.3,

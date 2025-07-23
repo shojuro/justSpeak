@@ -319,7 +319,7 @@ export async function POST(req: NextRequest) {
       model: 'gpt-4o-mini', // Fast model for quick responses
       messages,
       temperature: 0.8,
-      max_tokens: 150, // Reduced for faster responses
+      max_tokens: mode === 'learning' ? 600 : OPENAI_CONFIG.MAX_TOKENS, // More tokens for learning mode
       presence_penalty: 0.6,
       frequency_penalty: 0.3,
       stream: false
