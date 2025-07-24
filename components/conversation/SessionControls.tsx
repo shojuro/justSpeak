@@ -21,7 +21,7 @@ export default function SessionControls({
   isLocked = false,
   speechError,
   userTime,
-  voiceControlMode = 'push-to-talk',
+  voiceControlMode: _voiceControlMode = 'push-to-talk',
   onModeToggle,
   onMicrophoneToggle,
   onEndSession,

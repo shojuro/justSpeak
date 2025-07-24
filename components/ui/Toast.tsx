@@ -153,7 +153,7 @@ export function useToastActions() {
         error?: string | ((error: any) => string)
       }
     ) => {
-      const loadingId = Date.now().toString()
+      // Generate unique ID for loading toast
       
       if (messages.loading) {
         showToast(messages.loading, 'info', 0) // No auto-dismiss

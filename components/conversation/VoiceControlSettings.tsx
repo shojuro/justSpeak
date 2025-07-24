@@ -16,8 +16,8 @@ export default function VoiceControlSettings({
   onPatientModeChange
 }: VoiceControlSettingsProps) {
   // Force push-to-talk mode only for safety
-  const [mode, setMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
-  const [sensitivity, setSensitivity] = useState(3) // 1-5 scale
+  const [_mode, setMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
+  const [_sensitivity, setSensitivity] = useState(3) // 1-5 scale
   const [silenceThreshold, setSilenceThreshold] = useState(8) // 3-15 seconds
   const [patientMode, setPatientMode] = useState(false)
 
@@ -48,17 +48,9 @@ export default function VoiceControlSettings({
     }
   }, [])
 
-  const handleModeChange = (newMode: 'continuous' | 'push-to-talk') => {
-    setMode(newMode)
-    onModeChange(newMode)
-    localStorage.setItem('voice_control_mode', newMode)
-  }
+  // Mode change disabled - always push-to-talk
 
-  const handleSensitivityChange = (value: number) => {
-    setSensitivity(value)
-    onSensitivityChange(value)
-    localStorage.setItem('voice_sensitivity', value.toString())
-  }
+  // Sensitivity change disabled for push-to-talk mode
 
   const handleSilenceThresholdChange = (value: number) => {
     setSilenceThreshold(value)

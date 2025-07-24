@@ -18,7 +18,7 @@ export class CircuitBreaker {
   private failures: number = 0
   private successes: number = 0
   private lastFailureTime?: Date
-  private halfOpenRequests: number = 0
+  // halfOpenRequests not currently used
   private readonly options: CircuitBreakerOptions
 
   constructor(
@@ -90,7 +90,7 @@ export class CircuitBreaker {
 
   private transitionToOpen(): void {
     this.state = CircuitState.OPEN
-    this.halfOpenRequests = 0
+    // Reset half open requests
     
     logger.error(`Circuit breaker ${this.name} is now OPEN`, {
       failures: this.failures,
@@ -101,7 +101,7 @@ export class CircuitBreaker {
   private transitionToHalfOpen(): void {
     this.state = CircuitState.HALF_OPEN
     this.successes = 0
-    this.halfOpenRequests = 0
+    // Reset half open requests
     
     logger.info(`Circuit breaker ${this.name} is now HALF_OPEN`)
   }

@@ -3,15 +3,15 @@ import { randomUUID } from 'crypto'
 import { AssessmentService } from '@/lib/assessment-service'
 import { getAuthenticatedUser } from '@/lib/auth-helpers'
 import { db } from '@/lib/supabase-db'
-import { AppError } from '@/lib/error-handler'
-import { RedisRateLimiter } from '@/lib/redis'
-import { createRequestLogger } from '@/lib/logger'
-import { validateMessageLength, sanitizeSessionId } from '@/lib/sanitization'
+import { AppError as _AppError } from '@/lib/error-handler'
+import { RedisRateLimiter as _RedisRateLimiter } from '@/lib/redis'
+import { createRequestLogger, logger } from '@/lib/logger'
+import { validateMessageLength, sanitizeSessionId, sanitizeInput as _sanitizeInput } from '@/lib/sanitization'
 
 import { RATE_LIMITS, MESSAGE_LIMITS, BLOCKED_TOPICS, OPENAI_CONFIG, SESSION_CONFIG } from '@/lib/constants'
 
 // Initialize rate limiter
-const rateLimiter = new RedisRateLimiter()
+const rateLimiter = new _RedisRateLimiter()
 
 interface Message {
   role: 'user' | 'assistant' | 'system'

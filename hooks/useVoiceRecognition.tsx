@@ -326,9 +326,7 @@ export function useVoiceRecognition({
   }, [provider, isListening])
   
   // Clear transcript manually
-  const clearTranscript = useCallback(() => {
-    setTranscript('')
-  }, [])
+  // clearTranscript defined in return statement
 
   // Toggle listening
   const toggleListening = useCallback(() => {

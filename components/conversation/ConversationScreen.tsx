@@ -227,7 +227,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   useEffect(() => {
     // Load provider preferences
     const initializeProviders = async () => {
-      const _status = await checkAPIConfiguration()
+      await checkAPIConfiguration()
       
       // Check saved preferences first, then fall back to best available
       const savedSTT = getSavedProvider('stt') as 'browser' | 'openai' | 'google'
@@ -864,10 +864,10 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       )}
       
       {/* Debug panel - hidden on mobile by default */}
-      {showDebugPanel && (speechError || synthError || !isListening) && (
+      {showDebugPanel && (speechError || _synthError || !isListening) && (
         <div className="hidden sm:block">
           <VoiceDebugPanel
-            error={speechError || synthError}
+            error={speechError || _synthError}
             isListening={isListening}
             isSpeaking={isSpeaking}
             transcript={transcript}

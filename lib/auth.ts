@@ -226,7 +226,7 @@ export interface UserRole {
   permissions: string[]
 }
 
-export async function getUserRole(userId: string): Promise<UserRole> {
+export async function getUserRole(_userId: string): Promise<UserRole> {
   // For now, return default student role
   // In production, this would query a roles table
   return {

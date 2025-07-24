@@ -37,7 +37,7 @@ export default function TranscriptView({
     transcript += 'Conversation:\n'
     transcript += '-------------\n\n'
 
-    messages.forEach((message, index) => {
+    messages.forEach((message) => {
       const speaker = message.role === 'user' ? 'You' : 'TalkTime'
       const timestamp = showTimestamps ? `[${message.timestamp.toLocaleTimeString()}] ` : ''
       
@@ -86,7 +86,7 @@ export default function TranscriptView({
           aria-label="Conversation transcript"
         >
           <div className="space-y-3">
-            {messages.map((message, index) => (
+            {messages.map((message) => (
               <div key={message.id} className="border-b border-warm-coral-light/20 pb-3 last:border-0">
                 <div className="flex items-baseline gap-2">
                   <span className="font-semibold text-warm-coral">
