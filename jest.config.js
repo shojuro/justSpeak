@@ -12,11 +12,20 @@ const customJestConfig = {
   moduleNameMapper: {
     // Handle module aliases (this will be automatically configured for you soon)
     '^@/(.*)$': '<rootDir>/$1',
+    // Mock problematic ESM modules
+    '^isows$': '<rootDir>/__mocks__/isows.js',
+    '^@supabase/ssr$': '<rootDir>/__mocks__/@supabase/ssr.js',
+    // Mock Next.js server module
+    '^next/server$': '<rootDir>/__mocks__/next/server.js',
+    // Mock logger for tests
+    '^@/lib/logger$': '<rootDir>/__mocks__/lib/logger.js',
+    // Mock Redis for tests
+    '^@/lib/redis$': '<rootDir>/__mocks__/lib/redis.js'
   },
   testPathIgnorePatterns: ['/node_modules/', '/node_modules.old/', '/.next/', '/e2e/'],
   transformIgnorePatterns: [
-    '/node_modules/',
-    '^.+\\.module\\.(css|sass|scss)$',
+    // Allow transformation of specific ESM modules
+    'node_modules/(?!(isows|@supabase/realtime-js|@supabase/supabase-js|@supabase/ssr)/)'
   ],
   collectCoverageFrom: [
     'app/**/*.{js,jsx,ts,tsx}',

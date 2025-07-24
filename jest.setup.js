@@ -10,10 +10,41 @@ global.TextDecoder = TextDecoder
 if (typeof global.Request === 'undefined') {
   global.Request = class Request {
     constructor(input, init) {
-      this.url = input
-      this.method = init?.method || 'GET'
-      this.headers = new Headers(init?.headers)
+      // Use Object.defineProperty for read-only properties that NextRequest expects
+      Object.defineProperty(this, 'url', {
+        value: input,
+        writable: false,
+        enumerable: true,
+        configurable: true
+      })
+      
+      Object.defineProperty(this, 'method', {
+        value: init?.method || 'GET',
+        writable: false,
+        enumerable: true,
+        configurable: true
+      })
+      
+      Object.defineProperty(this, 'headers', {
+        value: new Headers(init?.headers),
+        writable: false,
+        enumerable: true,
+        configurable: true
+      })
+      
+      // Body can be writable
       this.body = init?.body
+      
+      // Add NextRequest expected properties
+      Object.defineProperty(this, 'nextUrl', {
+        value: {
+          pathname: new URL(input).pathname,
+          searchParams: new URL(input).searchParams
+        },
+        writable: false,
+        enumerable: true,
+        configurable: true
+      })
     }
     
     json() {
@@ -139,4 +170,33 @@ beforeAll(() => {
 
 afterAll(() => {
   console.error = originalError
+})
+
+// Mock NextResponse for API route tests
+global.NextResponse = class NextResponse extends Response {
+  constructor(body, init) {
+    super(body, init)
+  }
+  
+  static json(data, init) {
+    return new NextResponse(JSON.stringify(data), {
+      ...init,
+      headers: {
+        'content-type': 'application/json',
+        ...(init?.headers || {})
+      }
+    })
+  }
+}
+
+// Mock fetch for API tests
+global.fetch = jest.fn().mockResolvedValue({
+  ok: true,
+  json: jest.fn().mockResolvedValue({
+    choices: [{
+      message: {
+        content: 'Mocked AI response'
+      }
+    }]
+  })
 })
