@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { text, voice, speed, provider } = result.data
+    const { text, voice, speed, provider } = result.data!
 
     // Browser-based TTS (free, works offline)
     if (provider === 'browser') {
