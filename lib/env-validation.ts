@@ -149,6 +149,10 @@ export const env = {
 
 // Validate on module load
 if (typeof window === 'undefined') {
-  // Only validate on server-side
-  validateEnvStartup()
+  // Skip validation in CI build environment
+  const isCIBuild = process.env.CI === 'true' && process.env.NODE_ENV === 'production'
+  if (!isCIBuild) {
+    // Only validate on server-side and not during CI builds
+    validateEnvStartup()
+  }
 }
