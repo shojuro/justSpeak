@@ -87,8 +87,8 @@ export async function retry<T>(
 // Decorator for class methods
 export function Retryable(options: Partial<RetryOptions> = {}) {
   return function (
-    target: any,
-    propertyName: string,
+    _target: any,
+    _propertyName: string,
     descriptor: PropertyDescriptor
   ) {
     const originalMethod = descriptor.value

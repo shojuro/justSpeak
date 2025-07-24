@@ -9,12 +9,7 @@ interface UseElevenLabsSpeechReturn {
   error: string | null
 }
 
-interface ElevenLabsVoiceSettings {
-  stability: number
-  similarity_boost: number
-  style?: number
-  use_speaker_boost?: boolean
-}
+// ElevenLabsVoiceSettings interface removed - not used
 
 export function useElevenLabsSpeech(
   voiceId: string = 'pFZP5JQG7iQjIQuC4Bku', // Default to "Hope" voice
@@ -26,12 +21,7 @@ export function useElevenLabsSpeech(
   const abortControllerRef = useRef<AbortController | null>(null)
 
   // Voice settings for more natural speech
-  const voiceSettings: ElevenLabsVoiceSettings = {
-    stability: 0.75,
-    similarity_boost: 0.85,
-    style: 0.5,
-    use_speaker_boost: true
-  }
+  // Voice settings configuration not currently used
 
   // Browser TTS fallback
   const speakWithBrowserTTS = useCallback((text: string) => {

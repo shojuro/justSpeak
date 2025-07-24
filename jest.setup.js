@@ -1,6 +1,108 @@
 // Learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom'
 
+// Polyfills for Next.js server components
+const { TextEncoder, TextDecoder } = require('util')
+global.TextEncoder = TextEncoder
+global.TextDecoder = TextDecoder
+
+// Mock Request and Response for Next.js
+if (typeof global.Request === 'undefined') {
+  global.Request = class Request {
+    constructor(input, init) {
+      // Use Object.defineProperty for read-only properties that NextRequest expects
+      Object.defineProperty(this, 'url', {
+        value: input,
+        writable: false,
+        enumerable: true,
+        configurable: true
+      })
+      
+      Object.defineProperty(this, 'method', {
+        value: init?.method || 'GET',
+        writable: false,
+        enumerable: true,
+        configurable: true
+      })
+      
+      Object.defineProperty(this, 'headers', {
+        value: new Headers(init?.headers),
+        writable: false,
+        enumerable: true,
+        configurable: true
+      })
+      
+      // Body can be writable
+      this.body = init?.body
+      
+      // Add NextRequest expected properties
+      Object.defineProperty(this, 'nextUrl', {
+        value: {
+          pathname: new URL(input).pathname,
+          searchParams: new URL(input).searchParams
+        },
+        writable: false,
+        enumerable: true,
+        configurable: true
+      })
+    }
+    
+    json() {
+      return Promise.resolve(JSON.parse(this.body))
+    }
+    
+    text() {
+      return Promise.resolve(this.body)
+    }
+  }
+}
+
+if (typeof global.Response === 'undefined') {
+  global.Response = class Response {
+    constructor(body, init) {
+      this.body = body
+      this.status = init?.status || 200
+      this.statusText = init?.statusText || 'OK'
+      this.headers = new Headers(init?.headers)
+    }
+    
+    json() {
+      return Promise.resolve(JSON.parse(this.body))
+    }
+    
+    text() {
+      return Promise.resolve(this.body)
+    }
+  }
+}
+
+if (typeof global.Headers === 'undefined') {
+  global.Headers = class Headers {
+    constructor(init) {
+      this._headers = {}
+      if (init) {
+        Object.entries(init).forEach(([key, value]) => {
+          this._headers[key.toLowerCase()] = value
+        })
+      }
+    }
+    
+    get(name) {
+      return this._headers[name.toLowerCase()]
+    }
+    
+    set(name, value) {
+      this._headers[name.toLowerCase()] = value
+    }
+  }
+}
+
+// Load test environment variables
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
+process.env.SUPABASE_SERVICE_KEY = 'test-service-key'
+process.env.OPENAI_API_KEY = 'test-openai-key'
+
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -68,4 +170,33 @@ beforeAll(() => {
 
 afterAll(() => {
   console.error = originalError
+})
+
+// Mock NextResponse for API route tests
+global.NextResponse = class NextResponse extends Response {
+  constructor(body, init) {
+    super(body, init)
+  }
+  
+  static json(data, init) {
+    return new NextResponse(JSON.stringify(data), {
+      ...init,
+      headers: {
+        'content-type': 'application/json',
+        ...(init?.headers || {})
+      }
+    })
+  }
+}
+
+// Mock fetch for API tests
+global.fetch = jest.fn().mockResolvedValue({
+  ok: true,
+  json: jest.fn().mockResolvedValue({
+    choices: [{
+      message: {
+        content: 'Mocked AI response'
+      }
+    }]
+  })
 })

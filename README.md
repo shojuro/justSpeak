@@ -37,7 +37,14 @@ node simple-server.js
 
 ## Full Next.js Version (when you have disk space)
 
-1. **Free up ~1GB disk space**
+### Prerequisites
+- **Node.js 20.x or higher** (required for dependencies)
+- ~1GB free disk space
+
+1. **Install Node.js 20.x:**
+   - Use [nvm](https://github.com/nvm-sh/nvm) (recommended): `nvm use`
+   - Or download from [nodejs.org](https://nodejs.org/)
+
 2. **Install all dependencies:**
 ```bash
 npm install

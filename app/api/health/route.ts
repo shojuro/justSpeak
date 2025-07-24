@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
  * Health check endpoint for monitoring
  * Returns basic status without exposing sensitive information
  */
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const health = {
     status: 'ok',
     timestamp: new Date().toISOString(),

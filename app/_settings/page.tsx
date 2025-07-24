@@ -13,9 +13,9 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import { logUserActivity } from '@/lib/auth'
 
 function SettingsContent() {
-  const { user, profile, updateProfile, signOut } = useAuth()
+  const { user: _user, profile: _profile, updateProfile: _updateProfile, signOut: _signOut } = useAuth()
   const [activeTab, setActiveTab] = useState('profile')
-  const [isLoading, setIsLoading] = useState(false)
+  const [_isLoading, _setIsLoading] = useState(false)
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: '👤' },
@@ -69,7 +69,7 @@ function SettingsContent() {
 
 function ProfileSettings() {
   const { profile, updateProfile } = useAuth()
-  const [isLoading, setIsLoading] = useState(false)
+  const [_isLoading, _setIsLoading] = useState(false)
 
   const schema = {
     name: [validators.required(), validators.minLength(2)],
@@ -90,7 +90,7 @@ function ProfileSettings() {
     e.preventDefault()
     if (!validate()) return
 
-    setIsLoading(true)
+    _setIsLoading(true)
     try {
       await updateProfile({
         name: values.name,
@@ -104,7 +104,7 @@ function ProfileSettings() {
     } catch (error) {
       // Error handled by context
     } finally {
-      setIsLoading(false)
+      _setIsLoading(false)
     }
   }
 
@@ -177,7 +177,7 @@ function ProfileSettings() {
           />
         </FormField>
 
-        <SubmitButton isLoading={isLoading}>
+        <SubmitButton isLoading={_isLoading}>
           Save Changes
         </SubmitButton>
       </form>
@@ -186,7 +186,7 @@ function ProfileSettings() {
 }
 
 function PreferencesSettings() {
-  const { theme } = useTheme()
+  const { theme: _theme } = useTheme()
   const [preferences, setPreferences] = useState({
     dailyGoal: 15,
     reminderTime: '09:00',

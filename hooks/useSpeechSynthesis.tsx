@@ -40,7 +40,7 @@ export function useSpeechSynthesis({
           initPromiseRef.current = synthManagerRef.current.initialize()
         }
         
-        const initialized = await initPromiseRef.current
+        await initPromiseRef.current
         const state = synthManagerRef.current.getReadyState()
         
         console.log('Speech synthesis initialization result:', state)
@@ -171,7 +171,7 @@ export function useSpeechSynthesis({
 
       if (useProvider === 'browser') {
         // Handle browser-based synthesis
-        const data = await response.json()
+        await response.json()
         await speakWithBrowser(text)
         return
       }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { validateSessionOwnership, isSessionExpired } from './session-security'
+// Session security imports removed - not used in current implementation
 import { logger } from './logger'
 
 interface SessionValidation {

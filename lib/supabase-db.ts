@@ -82,6 +82,8 @@ export const db = {
   // User operations
   users: {
     async findByAuthId(authId: string) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('users')
         .select('*')
@@ -93,6 +95,8 @@ export const db = {
     },
     
     async create(user: Partial<User>) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('users')
         .insert(user)
@@ -104,6 +108,8 @@ export const db = {
     },
     
     async update(id: string, updates: Partial<User>) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('users')
         .update(updates)
@@ -119,6 +125,8 @@ export const db = {
   // Session operations
   sessions: {
     async create(session: Partial<Session>) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('sessions')
         .insert(session)
@@ -130,6 +138,8 @@ export const db = {
     },
     
     async update(id: string, updates: Partial<Session>) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('sessions')
         .update(updates)
@@ -142,6 +152,8 @@ export const db = {
     },
     
     async findByUserId(userId: string, limit = 10) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('sessions')
         .select('*')
@@ -150,13 +162,15 @@ export const db = {
         .limit(limit)
       
       if (error) throw error
-      return data as unknown as unknown as Session[]
+      return data as unknown as Session[]
     }
   },
   
   // Message operations
   messages: {
     async create(message: Partial<Message>) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('messages')
         .insert(message)
@@ -168,6 +182,8 @@ export const db = {
     },
     
     async findBySessionId(sessionId: string) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('messages')
         .select('*')
@@ -175,13 +191,15 @@ export const db = {
         .order('timestamp', { ascending: true })
       
       if (error) throw error
-      return data as unknown as unknown as Message[]
+      return data as unknown as Message[]
     }
   },
   
   // Assessment operations
   assessments: {
     async create(assessment: Partial<Assessment>) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('assessments')
         .insert(assessment)
@@ -193,6 +211,8 @@ export const db = {
     },
     
     async findBySessionId(sessionId: string) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('assessments')
         .select('*')
@@ -200,13 +220,15 @@ export const db = {
         .order('timestamp', { ascending: true })
       
       if (error) throw error
-      return data as unknown as unknown as Assessment[]
+      return data as unknown as Assessment[]
     }
   },
   
   // User stats operations
   userStats: {
     async findByUserId(userId: string) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('user_stats')
         .select('*')
@@ -214,10 +236,12 @@ export const db = {
         .single()
       
       if (error && error.code !== 'PGRST116') throw error // PGRST116 = not found
-      return data as unknown as unknown as UserStats | null
+      return data as unknown as UserStats | null
     },
     
     async create(stats: Partial<UserStats>) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('user_stats')
         .insert(stats)
@@ -225,10 +249,12 @@ export const db = {
         .single()
       
       if (error) throw error
-      return data as unknown as unknown as UserStats
+      return data as unknown as UserStats
     },
     
     async update(userId: string, updates: Partial<UserStats>) {
+      if (!supabaseDb) throw new Error('Database not initialized')
+      
       const { data, error } = await supabaseDb
         .from('user_stats')
         .update(updates)
@@ -237,7 +263,7 @@ export const db = {
         .single()
       
       if (error) throw error
-      return data as unknown as unknown as UserStats
+      return data as unknown as UserStats
     },
     
     async incrementTalkTime(userId: string, seconds: number) {
