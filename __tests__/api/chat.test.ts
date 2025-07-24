@@ -104,7 +104,7 @@ describe('/api/chat', () => {
 
     // Since we can't easily mock the OpenAI call, we'll at least verify
     // the request gets to the validation stage
-    const response = await POST(req)
+    const _response = await POST(req)
     
     // The actual implementation would sanitize the input
     // This test verifies the endpoint is protected by auth and rate limiting

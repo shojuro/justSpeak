@@ -30,9 +30,9 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [voiceProvider, setVoiceProvider] = useState<'browser' | 'openai' | 'google'>('browser')
   const [synthProvider, setSynthProvider] = useState<'browser' | 'openai' | 'elevenlabs'>('browser')
-  const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState('1t1EeRixsJrKbiF1zwM6') // Jerry B. voice
+  const [elevenLabsVoiceId, _setElevenLabsVoiceId] = useState('1t1EeRixsJrKbiF1zwM6') // Jerry B. voice
   const [showProviderSettings, setShowProviderSettings] = useState(false)
-  const [showDebugPanel, setShowDebugPanel] = useState(process.env.NODE_ENV === 'development')
+  const [showDebugPanel, _setShowDebugPanel] = useState(process.env.NODE_ENV === 'development')
   const [voiceControlMode, setVoiceControlMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
   const [_voiceSensitivity, setVoiceSensitivity] = useState(3)
   const [customSilenceThreshold, setCustomSilenceThreshold] = useState<number | null>(null)
@@ -227,7 +227,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   useEffect(() => {
     // Load provider preferences
     const initializeProviders = async () => {
-      const status = await checkAPIConfiguration()
+      const _status = await checkAPIConfiguration()
       
       // Check saved preferences first, then fall back to best available
       const savedSTT = getSavedProvider('stt') as 'browser' | 'openai' | 'google'
@@ -834,7 +834,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         isListening={isListening}
         isSpeaking={isAISpeaking}
         isLocked={isSpeakingLocked}
-        speechError={speechError || synthError}
+        speechError={speechError || _synthError}
         userTime={Math.floor(userSpeakingTime)}
         voiceControlMode={voiceControlMode}
         onModeToggle={handleModeToggle}

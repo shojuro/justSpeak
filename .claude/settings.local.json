@@ -153,7 +153,8 @@
       "Bash(echo:*)",
       "Bash(npx playwright:*)",
       "Bash(git check-ignore:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(npm run test:ci:*)"
     ],
     "deny": []
   }

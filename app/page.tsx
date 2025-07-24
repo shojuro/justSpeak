@@ -10,11 +10,11 @@ type AppState = 'welcome' | 'conversation' | 'complete'
 
 export default function Home() {
   const [appState, setAppState] = useState<AppState>('welcome')
-  const [sessionData, setSessionData] = useState({
+  const [_sessionData, setSessionData] = useState({
     startTime: null as Date | null,
     talkTime: 0,
   })
-  const { user, loading } = useAuth()
+  const { _user, _loading } = useAuth()
 
   const handleStartConversation = () => {
     setSessionData({

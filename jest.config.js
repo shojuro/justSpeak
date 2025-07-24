@@ -13,7 +13,7 @@ const customJestConfig = {
     // Handle module aliases (this will be automatically configured for you soon)
     '^@/(.*)$': '<rootDir>/$1',
   },
-  testPathIgnorePatterns: ['/node_modules/', '/.next/', '/e2e/'],
+  testPathIgnorePatterns: ['/node_modules/', '/node_modules.old/', '/.next/', '/e2e/'],
   transformIgnorePatterns: [
     '/node_modules/',
     '^.+\\.module\\.(css|sass|scss)$',
