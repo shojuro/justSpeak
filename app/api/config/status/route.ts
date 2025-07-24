@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkAPIConfiguration } from '@/lib/api-config'
 import { logger } from '@/lib/logger'
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     // Get API configuration status
     const status = checkAPIConfiguration()

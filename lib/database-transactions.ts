@@ -67,6 +67,14 @@ export class DatabaseTransaction {
   }
 }
 
+// Helper to ensure database is initialized
+function ensureDb() {
+  if (!supabaseDb) {
+    throw new Error('Database not initialized')
+  }
+  return supabaseDb
+}
+
 // Transaction helpers for common operations
 export const transactions = {
   /**
@@ -83,7 +91,7 @@ export const transactions = {
     // Add session creation
     transaction.add(
       async () => {
-        const { data, error } = await supabaseDb
+        const { data, error } = await ensureDb()
           .from('sessions')
           .insert(sessionData)
           .select()
@@ -96,7 +104,7 @@ export const transactions = {
       // Rollback: delete the session
       async () => {
         if (sessionId) {
-          await supabaseDb
+          await ensureDb()
             .from('sessions')
             .delete()
             .eq('id', sessionId)
@@ -110,7 +118,7 @@ export const transactions = {
     for (const message of messages) {
       transaction.add(
         async () => {
-          const { data, error } = await supabaseDb
+          const { data, error } = await ensureDb()
             .from('messages')
             .insert({ ...message, session_id: sessionId })
             .select()
@@ -123,7 +131,7 @@ export const transactions = {
         // Rollback: delete the message
         async () => {
           if (messageIds.length > 0) {
-            await supabaseDb
+            await ensureDb()
               .from('messages')
               .delete()
               .in('id', messageIds)
@@ -154,7 +162,7 @@ export const transactions = {
     // Update session
     transaction.add(
       async () => {
-        const { data, error } = await supabaseDb
+        const { data, error } = await ensureDb()
           .from('sessions')
           .update(sessionUpdates)
           .eq('id', sessionId)
@@ -170,7 +178,7 @@ export const transactions = {
     transaction.add(
       async () => {
         // Get current stats
-        const { data: currentStats } = await supabaseDb
+        const { data: currentStats } = await ensureDb()
           .from('user_stats')
           .select('*')
           .eq('user_id', userId)
@@ -178,7 +186,7 @@ export const transactions = {
 
         if (currentStats) {
           // Update existing stats
-          const { data, error } = await supabaseDb
+          const { data, error } = await ensureDb()
             .from('user_stats')
             .update({
               total_talk_time: (currentStats.total_talk_time as number) + talkTimeSeconds,
@@ -195,7 +203,7 @@ export const transactions = {
           return data
         } else {
           // Create new stats
-          const { data, error } = await supabaseDb
+          const { data, error } = await ensureDb()
             .from('user_stats')
             .insert({
               user_id: userId,
@@ -235,7 +243,7 @@ export const transactions = {
     // Save message
     transaction.add(
       async () => {
-        const { data, error } = await supabaseDb
+        const { data, error } = await ensureDb()
           .from('messages')
           .insert(messageData)
           .select()
@@ -248,7 +256,7 @@ export const transactions = {
       // Rollback: delete the message
       async () => {
         if (messageId) {
-          await supabaseDb
+          await ensureDb()
             .from('messages')
             .delete()
             .eq('id', messageId)
@@ -259,7 +267,7 @@ export const transactions = {
     // Save assessment
     transaction.add(
       async () => {
-        const { data, error } = await supabaseDb
+        const { data, error } = await ensureDb()
           .from('assessments')
           .insert({ ...assessmentData, message_id: messageId })
           .select()

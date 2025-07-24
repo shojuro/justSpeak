@@ -25,16 +25,16 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [isAIThinking, setIsAIThinking] = useState(false)
   const [talkTime, setTalkTime] = useState(0)
   const [userSpeakingTime, setUserSpeakingTime] = useState(0)
-  const [lastTranscript, setLastTranscript] = useState('')
+  const [_lastTranscript, _setLastTranscript] = useState('')
   const [mode, setMode] = useState<'conversation' | 'learning'>('conversation')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [voiceProvider, setVoiceProvider] = useState<'browser' | 'openai' | 'google'>('browser')
   const [synthProvider, setSynthProvider] = useState<'browser' | 'openai' | 'elevenlabs'>('browser')
-  const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState('1t1EeRixsJrKbiF1zwM6') // Jerry B. voice
+  const [elevenLabsVoiceId, _setElevenLabsVoiceId] = useState('1t1EeRixsJrKbiF1zwM6') // Jerry B. voice
   const [showProviderSettings, setShowProviderSettings] = useState(false)
-  const [showDebugPanel, setShowDebugPanel] = useState(process.env.NODE_ENV === 'development')
+  const [showDebugPanel, _setShowDebugPanel] = useState(process.env.NODE_ENV === 'development')
   const [voiceControlMode, setVoiceControlMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
-  const [voiceSensitivity, setVoiceSensitivity] = useState(3)
+  const [_voiceSensitivity, setVoiceSensitivity] = useState(3)
   const [customSilenceThreshold, setCustomSilenceThreshold] = useState<number | null>(null)
   const [patientMode, setPatientMode] = useState(false)
   const [isWaitingForSilence, setIsWaitingForSilence] = useState(false)
@@ -98,9 +98,9 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const { 
     speak: _speak, 
     isSpeaking, 
-    stop: stopSpeaking,
-    error: synthError,
-    isReady: isSynthReady 
+    stop: _stopSpeaking,
+    error: _synthError,
+    isReady: _isSynthReady 
   } = useSpeechSynthesis({
     provider: synthProvider,
     voice: synthProvider === 'elevenlabs' ? elevenLabsVoiceId : 'nova',
@@ -134,12 +134,12 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       setTimeout(() => {
         logger.debug('AI finished speaking, extended wait before enabling mic')
         setIsAISpeaking(false)
-        // Additional delay before unlocking
+        // Much longer delay before unlocking to prevent echo
         setTimeout(() => {
           logger.debug('Unlocking microphone after extended delay')
           setIsSpeakingLocked(false)
-        }, 2000) // 2s after speech ends
-      }, 1000) // 1s buffer
+        }, 8000) // 8s after speech ends to prevent echo
+      }, 2000) // 2s buffer for synthesis to fully complete
     }
   }, [_speak, isListening, stopListening])
 
@@ -174,20 +174,48 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       try {
         setIsVoiceLoading(true)
         
-        // Initialize voice synthesis manager
-        const synthReady = await voiceSynthManagerRef.current.initialize()
+        // Initialize voice synthesis manager with timeout
+        const initPromise = voiceSynthManagerRef.current.initialize()
+        const timeoutPromise = new Promise<boolean>((resolve) => 
+          setTimeout(() => resolve(false), 5000) // 5 second timeout
+        )
+        
+        const synthReady = await Promise.race([initPromise, timeoutPromise])
         
         if (synthReady) {
           logger.debug('Voice synthesis fully initialized, speaking greeting')
           setIsVoiceLoading(false)
-          await speak(greeting)
+          
+          // Try to speak with fallback
+          try {
+            await speak(greeting)
+          } catch (speakErr) {
+            logger.error('Failed to speak greeting', speakErr as Error)
+            // Try browser TTS as fallback
+            if (window.speechSynthesis) {
+              const utterance = new SpeechSynthesisUtterance(greeting)
+              window.speechSynthesis.speak(utterance)
+            }
+          }
         } else {
-          logger.warn('Voice synthesis initialization failed - text only mode')
+          logger.warn('Voice synthesis initialization timeout - attempting fallback')
           setIsVoiceLoading(false)
+          
+          // Try browser TTS directly as fallback
+          if (window.speechSynthesis) {
+            const utterance = new SpeechSynthesisUtterance(greeting)
+            window.speechSynthesis.speak(utterance)
+          }
         }
       } catch (err) {
         logger.error('Failed to initialize voice synthesis', err as Error)
         setIsVoiceLoading(false)
+        
+        // Last resort: try browser TTS
+        if (window.speechSynthesis) {
+          const utterance = new SpeechSynthesisUtterance(greeting)
+          window.speechSynthesis.speak(utterance)
+        }
       }
     }
     
@@ -199,7 +227,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   useEffect(() => {
     // Load provider preferences
     const initializeProviders = async () => {
-      const status = await checkAPIConfiguration()
+      await checkAPIConfiguration()
       
       // Check saved preferences first, then fall back to best available
       const savedSTT = getSavedProvider('stt') as 'browser' | 'openai' | 'google'
@@ -253,21 +281,15 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     const greetingTimer = setTimeout(async () => {
       await sendInitialGreeting()
       
-      // Load saved voice control mode AFTER greeting
-      const savedMode = localStorage.getItem('voice_control_mode') as 'continuous' | 'push-to-talk'
-      if (savedMode) {
-        setVoiceControlMode(savedMode)
-      } else {
-        // Default to push-to-talk to prevent feedback
-        setVoiceControlMode('push-to-talk')
-        localStorage.setItem('voice_control_mode', 'push-to-talk')
-      }
+      // ALWAYS use push-to-talk mode for safety (ignore saved preference)
+      setVoiceControlMode('push-to-talk')
+      localStorage.setItem('voice_control_mode', 'push-to-talk')
       
       // Mark initialization complete after greeting
       setTimeout(() => {
         setIsInitializing(false)
-        logger.info('Initialization complete', { voiceControlMode: savedMode || 'push-to-talk' })
-      }, 3000) // Wait 3 seconds after greeting before allowing any mic
+        logger.info('Initialization complete', { voiceControlMode: 'push-to-talk' })
+      }, 5000) // Wait 5 seconds after greeting before allowing any mic
     }, 1000)
 
     return () => {
@@ -297,6 +319,20 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         e.preventDefault()
         logger.debug('Push-to-talk: Stopping listening')
         stopListening()
+        // End speech session immediately for push-to-talk
+        speechSessionRef.current.endSession()
+        // Clear any pending timers
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current)
+        }
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current)
+        }
+        if (earlyCheckIntervalRef.current) {
+          clearInterval(earlyCheckIntervalRef.current)
+        }
+        setIsWaitingForSilence(false)
+        setSilenceCountdown(0)
       }
     }
 
@@ -373,23 +409,31 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     const wordCount = transcript.trim().split(/\s+/).length
     let silenceDelay: number
     
+    // Skip processing if too few words (prevent accidental noises)
+    // Require at least 5 words to prevent premature processing
+    if (wordCount < 5 && !patientMode) {
+      // Clear timer and return early
+      setIsWaitingForSilence(false)
+      return
+    }
+    
     // Use custom threshold if set, otherwise use defaults
     if (customSilenceThreshold !== null) {
       silenceDelay = customSilenceThreshold * 1000 // Convert to milliseconds
     } else if (patientMode) {
       // Patient mode: Extra long delays
-      silenceDelay = 12000 // 12 seconds minimum
+      silenceDelay = 15000 // 15 seconds for language learners
     } else if (voiceControlMode === 'push-to-talk') {
       // Push-to-talk: More generous for manual control
-      silenceDelay = 5000 // 5 seconds base
+      silenceDelay = 8000 // 8 seconds base
     } else {
       // Continuous mode: Dynamic based on speech length
-      if (wordCount < 20) {
-        silenceDelay = 5000 // 5 seconds for short utterances
-      } else if (wordCount < 50) {
-        silenceDelay = 8000 // 8 seconds for medium utterances
+      if (wordCount < 10) {
+        silenceDelay = 8000 // 8 seconds for short utterances
+      } else if (wordCount < 30) {
+        silenceDelay = 10000 // 10 seconds for medium utterances
       } else {
-        silenceDelay = 10000 // 10 seconds for long utterances
+        silenceDelay = 12000 // 12 seconds for long utterances
       }
     }
     
@@ -461,17 +505,15 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         clearInterval(earlyCheckIntervalRef.current)
       }
       
-      const finalTranscript = transcript.trim()
-      
       // Get the full session transcript
       const sessionTranscript = speechSessionRef.current.endSession()
-      const finalTranscript = sessionTranscript || transcript.trim()
+      const processedTranscript = sessionTranscript || transcript.trim()
       
       // Process if we have content and it's different from last processed
-      if (finalTranscript && finalTranscript !== lastTranscriptRef.current) {
+      if (processedTranscript && processedTranscript !== lastTranscriptRef.current) {
         // Check if this is the AI's own speech using the filter
-        if (AISpeechFilter.isAISpeech(finalTranscript)) {
-          console.log('Filtered out AI speech:', finalTranscript.substring(0, 50))
+        if (AISpeechFilter.isAISpeech(processedTranscript)) {
+          console.log('Filtered out AI speech:', processedTranscript.substring(0, 50))
           clearTranscript()
           processingRef.current = false
           setIsWaitingForSilence(false)
@@ -479,20 +521,23 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
           return
         }
         
-        console.log('Processing user speech:', finalTranscript)
+        console.log('Processing user speech:', processedTranscript)
         processingRef.current = true
-        lastTranscriptRef.current = finalTranscript
+        lastTranscriptRef.current = processedTranscript
         
         // Stop listening and clear transcript
         stopListening()
         
         // Sanitize and send
-        const sanitizedTranscript = finalTranscript
+        const sanitizedTranscript = processedTranscript
           .replace(/[<>]/g, '')
           .substring(0, 5000)
         
         addUserMessage(sanitizedTranscript)
         sendMessage(sanitizedTranscript)
+        
+        // Clear transcript buffer after processing
+        clearTranscript()
       }
       
       // Hide waiting indicator
@@ -615,15 +660,9 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       setIsAIThinking(false)
       processingRef.current = false
       
-      // Only restart listening in continuous mode AND not during initialization
-      if (voiceControlMode === 'continuous' && !isInitializing) {
-        setTimeout(() => {
-          if (!isAISpeaking) {
-            console.log('Restarting microphone after AI response')
-            startListening()
-          }
-        }, 2000) // 2 second delay after AI finishes
-      }
+      // NEVER restart listening automatically - require manual activation
+      // This prevents echo and ensures user control
+      console.log('Microphone requires manual activation (push-to-talk mode)')
     }
   }
 
@@ -755,8 +794,20 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         </div>
       )}
       
+      {/* Push-to-talk indicator */}
+      {voiceControlMode === 'push-to-talk' && isListening && (
+        <div className="absolute bottom-52 sm:bottom-60 left-1/2 transform -translate-x-1/2 bg-green-500/20 px-4 sm:px-6 py-2 sm:py-3 rounded-full mx-4 flex items-center gap-2 ring-2 ring-green-500/50">
+          <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+          </svg>
+          <p className="text-xs sm:text-sm text-green-400 font-semibold">
+            🔴 Recording - Release SPACE to stop
+          </p>
+        </div>
+      )}
+      
       {/* Still listening indicator - shows after 3 seconds */}
-      {isListening && listeningDuration >= 3 && !isWaitingForSilence && !isInitializing && (
+      {isListening && listeningDuration >= 3 && !isWaitingForSilence && !isInitializing && voiceControlMode !== 'push-to-talk' && (
         <div className="absolute bottom-40 sm:bottom-48 left-1/2 transform -translate-x-1/2 bg-jet/80 px-3 sm:px-4 py-2 rounded-full mx-4">
           <p className="text-xs sm:text-sm text-warm-coral-light animate-pulse">
             Still listening... Take your time 🎤
@@ -783,7 +834,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
         isListening={isListening}
         isSpeaking={isAISpeaking}
         isLocked={isSpeakingLocked}
-        speechError={speechError || synthError}
+        speechError={speechError || _synthError}
         userTime={Math.floor(userSpeakingTime)}
         voiceControlMode={voiceControlMode}
         onModeToggle={handleModeToggle}
@@ -813,10 +864,10 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       )}
       
       {/* Debug panel - hidden on mobile by default */}
-      {showDebugPanel && (speechError || synthError || !isListening) && (
+      {showDebugPanel && (speechError || _synthError || !isListening) && (
         <div className="hidden sm:block">
           <VoiceDebugPanel
-            error={speechError || synthError}
+            error={speechError || _synthError}
             isListening={isListening}
             isSpeaking={isSpeaking}
             transcript={transcript}

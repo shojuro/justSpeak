@@ -22,7 +22,7 @@ interface SessionSummary {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedPeriod, setSelectedPeriod] = useState<'day' | 'week' | 'month'>('week')
+  const [_selectedPeriod, _setSelectedPeriod] = useState<'day' | 'week' | 'month'>('week')
 
   useEffect(() => {
     fetchDashboardStats()

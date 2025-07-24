@@ -78,7 +78,7 @@ export function Cacheable(
   ttlSeconds: number = REDIS_CONFIG.DEFAULT_TTL
 ) {
   return function (
-    target: any,
+    _target: any,
     propertyName: string,
     descriptor: PropertyDescriptor
   ) {
@@ -137,6 +137,7 @@ export const cachedDb = {
     
     // Load from database
     const { supabaseDb } = await import('./supabase-db')
+    if (!supabaseDb) throw new Error('Database not initialized')
     const { data, error } = await supabaseDb
       .from('users')
       .select('*')
@@ -160,6 +161,7 @@ export const cachedDb = {
     
     // Load from database
     const { supabaseDb } = await import('./supabase-db')
+    if (!supabaseDb) throw new Error('Database not initialized')
     const { data, error } = await supabaseDb
       .from('user_stats')
       .select('*')
@@ -185,6 +187,7 @@ export const cachedDb = {
     
     // Load from database
     const { supabaseDb } = await import('./supabase-db')
+    if (!supabaseDb) throw new Error('Database not initialized')
     const { data, error } = await supabaseDb
       .from('sessions')
       .select('*')

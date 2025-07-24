@@ -15,7 +15,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const [isListening, setIsListening] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const recognitionRef = useRef<any>(null)
-  const clearTranscript = () => setTranscript('')
+  // clearTranscript function internal
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

@@ -29,6 +29,7 @@ export default function ThemeToggle() {
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
+    return undefined
   }, [isOpen])
 
   // Keyboard navigation

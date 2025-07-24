@@ -14,7 +14,7 @@ export default function Home() {
     startTime: null as Date | null,
     talkTime: 0,
   })
-  const { user, loading } = useAuth()
+  const { user: _user, loading: _loading } = useAuth()
 
   const handleStartConversation = () => {
     setSessionData({
