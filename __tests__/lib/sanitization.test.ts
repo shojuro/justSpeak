@@ -1,5 +1,4 @@
-import DOMPurify from 'isomorphic-dompurify'
-import { sanitizeHTML, sanitizeInput, escapeHtml } from '@/lib/sanitization'
+import { sanitizeHTML, sanitizeInput, validateMessageLength } from '@/lib/sanitization'
 
 describe('Sanitization Functions', () => {
   describe('sanitizeHTML', () => {
@@ -47,11 +46,6 @@ describe('Sanitization Functions', () => {
       expect(sanitizeInput('Hello & <World>')).toBe('Hello &amp; &lt;World&gt;')
     })
 
-    it('should respect maxLength parameter', () => {
-      const longText = 'a'.repeat(100)
-      expect(sanitizeInput(longText, 50)).toHaveLength(50)
-    })
-
     it('should handle empty input', () => {
       expect(sanitizeInput('')).toBe('')
       expect(sanitizeInput(null as any)).toBe('')
@@ -59,23 +53,25 @@ describe('Sanitization Functions', () => {
     })
   })
 
-  describe('escapeHtml', () => {
-    it('should escape HTML special characters', () => {
-      expect(escapeHtml('<div>Test & "quotes"</div>')).toBe(
-        '&lt;div&gt;Test &amp; &quot;quotes&quot;&lt;/div&gt;'
-      )
+  describe('validateMessageLength', () => {
+    it('should validate message length', () => {
+      const result = validateMessageLength('Hello World', 20)
+      expect(result.isValid).toBe(true)
+      expect(result.sanitized).toBe('Hello World')
     })
 
-    it('should escape single quotes', () => {
-      expect(escapeHtml("It's a test")).toBe("It&#x27;s a test")
-    })
-
-    it('should handle already escaped content', () => {
-      expect(escapeHtml('&lt;div&gt;')).toBe('&amp;lt;div&amp;gt;')
+    it('should reject messages that are too long', () => {
+      const longMessage = 'a'.repeat(100)
+      const result = validateMessageLength(longMessage, 50)
+      expect(result.isValid).toBe(false)
+      expect(result.sanitized).toHaveLength(50)
+      expect(result.error).toContain('too long')
     })
 
     it('should handle empty input', () => {
-      expect(escapeHtml('')).toBe('')
+      const result = validateMessageLength('')
+      expect(result.isValid).toBe(false)
+      expect(result.error).toContain('cannot be empty')
     })
   })
 

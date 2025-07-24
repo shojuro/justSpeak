@@ -23,6 +23,19 @@ const PHRASE_ENDINGS = [
   'i\'m done',
   'i\'m finished',
   'that\'s it',
+  'thank you',
+  'thanks',
+  'please',
+  'yes',
+  'no',
+  'maybe',
+  'i agree',
+  'i disagree',
+  'exactly',
+  'absolutely',
+  'definitely',
+  'of course',
+  'sure',
 ]
 
 // Question words that often start incomplete thoughts
@@ -129,8 +142,8 @@ export function shouldProcessTranscript(
   
   // Process early if we're highly confident it's complete
   if (completion.isComplete && completion.confidence > 0.8) {
-    // But still wait at least 2 seconds to be sure
-    return silenceElapsed >= 2000
+    // But still wait at least 3 seconds for language learners
+    return silenceElapsed >= 3000
   }
   
   // Don't process if we're confident it's incomplete
