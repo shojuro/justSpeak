@@ -82,9 +82,10 @@ export function detectSentenceCompletion(transcript: string): {
     }
   }
 
-  // Very short utterances (< 3 words) are often complete
-  if (wordCount < 3) {
-    return { isComplete: true, confidence: 0.7, reason: 'short_utterance' }
+  // Very short utterances (< 5 words) might be incomplete thoughts
+  // Language learners often speak in fragments
+  if (wordCount < 5) {
+    return { isComplete: false, confidence: 0.3, reason: 'possibly_incomplete' }
   }
 
   // Check if it's an incomplete question
@@ -112,8 +113,9 @@ export function detectSentenceCompletion(transcript: string): {
     }
   }
 
-  // Default: consider complete if > 10 words (likely a full thought)
-  if (wordCount > 10) {
+  // Default: require more words before assuming completion
+  // Language learners may speak slowly with pauses
+  if (wordCount > 20) {
     return { isComplete: true, confidence: 0.6, reason: 'long_utterance' }
   }
 
@@ -140,14 +142,16 @@ export function shouldProcessTranscript(
     return true
   }
   
-  // Process early if we're highly confident it's complete
-  if (completion.isComplete && completion.confidence > 0.8) {
-    // But still wait at least 3 seconds for language learners
-    return silenceElapsed >= 3000
+  // Only process early if we're VERY confident it's complete
+  // and have waited a reasonable time
+  if (completion.isComplete && completion.confidence > 0.9) {
+    // Wait at least 8 seconds for language learners
+    return silenceElapsed >= 8000
   }
   
-  // Don't process if we're confident it's incomplete
-  if (!completion.isComplete && completion.confidence > 0.7) {
+  // Don't process if we think it's incomplete
+  // Be conservative - prefer waiting over interrupting
+  if (!completion.isComplete) {
     return false
   }
   

@@ -134,12 +134,12 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       setTimeout(() => {
         logger.debug('AI finished speaking, extended wait before enabling mic')
         setIsAISpeaking(false)
-        // Additional delay before unlocking
+        // Much longer delay before unlocking to prevent echo
         setTimeout(() => {
           logger.debug('Unlocking microphone after extended delay')
           setIsSpeakingLocked(false)
-        }, 3500) // 3.5s after speech ends to prevent echo
-      }, 1500) // 1.5s buffer for synthesis to fully complete
+        }, 8000) // 8s after speech ends to prevent echo
+      }, 2000) // 2s buffer for synthesis to fully complete
     }
   }, [_speak, isListening, stopListening])
 
@@ -281,21 +281,15 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     const greetingTimer = setTimeout(async () => {
       await sendInitialGreeting()
       
-      // Load saved voice control mode AFTER greeting
-      const savedMode = localStorage.getItem('voice_control_mode') as 'continuous' | 'push-to-talk'
-      if (savedMode) {
-        setVoiceControlMode(savedMode)
-      } else {
-        // Default to push-to-talk to prevent feedback
-        setVoiceControlMode('push-to-talk')
-        localStorage.setItem('voice_control_mode', 'push-to-talk')
-      }
+      // ALWAYS use push-to-talk mode for safety (ignore saved preference)
+      setVoiceControlMode('push-to-talk')
+      localStorage.setItem('voice_control_mode', 'push-to-talk')
       
       // Mark initialization complete after greeting
       setTimeout(() => {
         setIsInitializing(false)
-        logger.info('Initialization complete', { voiceControlMode: savedMode || 'push-to-talk' })
-      }, 3000) // Wait 3 seconds after greeting before allowing any mic
+        logger.info('Initialization complete', { voiceControlMode: 'push-to-talk' })
+      }, 5000) // Wait 5 seconds after greeting before allowing any mic
     }, 1000)
 
     return () => {
@@ -416,7 +410,8 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
     let silenceDelay: number
     
     // Skip processing if too few words (prevent accidental noises)
-    if (wordCount < 2 && !patientMode) {
+    // Require at least 5 words to prevent premature processing
+    if (wordCount < 5 && !patientMode) {
       // Clear timer and return early
       setIsWaitingForSilence(false)
       return
@@ -665,15 +660,9 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       setIsAIThinking(false)
       processingRef.current = false
       
-      // Only restart listening in continuous mode AND not during initialization
-      if (voiceControlMode === 'continuous' && !isInitializing && !isSpeakingLocked) {
-        setTimeout(() => {
-          if (!isAISpeaking && !isSpeakingLocked) {
-            console.log('Restarting microphone after AI response')
-            startListening()
-          }
-        }, 4000) // 4 second delay after AI finishes to prevent echo
-      }
+      // NEVER restart listening automatically - require manual activation
+      // This prevents echo and ensures user control
+      console.log('Microphone requires manual activation (push-to-talk mode)')
     }
   }
 
@@ -807,12 +796,12 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
       
       {/* Push-to-talk indicator */}
       {voiceControlMode === 'push-to-talk' && isListening && (
-        <div className="absolute bottom-52 sm:bottom-60 left-1/2 transform -translate-x-1/2 bg-green-500/20 px-4 sm:px-6 py-2 sm:py-3 rounded-full mx-4 flex items-center gap-2">
+        <div className="absolute bottom-52 sm:bottom-60 left-1/2 transform -translate-x-1/2 bg-green-500/20 px-4 sm:px-6 py-2 sm:py-3 rounded-full mx-4 flex items-center gap-2 ring-2 ring-green-500/50">
           <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
           </svg>
-          <p className="text-xs sm:text-sm text-green-400">
-            Hold SPACE to speak
+          <p className="text-xs sm:text-sm text-green-400 font-semibold">
+            🔴 Recording - Release SPACE to stop
           </p>
         </div>
       )}

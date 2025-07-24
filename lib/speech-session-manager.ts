@@ -125,6 +125,8 @@ export class AISpeechFilter {
     "conversation partner",
     "what would you like to talk about today",
     "what can we talk about",
+    "what were you saying",
+    "let me try again",
     
     // Common AI responses
     "what would you like to talk about",
@@ -184,13 +186,32 @@ export class AISpeechFilter {
   ]
 
   private static recentAIResponses: string[] = []
-  private static readonly MAX_RECENT_RESPONSES = 10
+  private static readonly MAX_RECENT_RESPONSES = 20
+  private static allAIResponses: Set<string> = new Set()
+  private static responseFingerprints: Set<string> = new Set()
 
   static addAIResponse(response: string) {
-    // Store recent AI responses to filter out echoes
-    this.recentAIResponses.unshift(response.toLowerCase())
+    const lowerResponse = response.toLowerCase().trim()
+    
+    // Store in all collections
+    this.recentAIResponses.unshift(lowerResponse)
     if (this.recentAIResponses.length > this.MAX_RECENT_RESPONSES) {
       this.recentAIResponses.pop()
+    }
+    
+    // Store full response
+    this.allAIResponses.add(lowerResponse)
+    
+    // Generate and store fingerprints for partial matching
+    const words = lowerResponse.split(/\s+/)
+    // Store various n-grams as fingerprints
+    for (let n = 3; n <= Math.min(10, words.length); n++) {
+      for (let i = 0; i <= words.length - n; i++) {
+        const ngram = words.slice(i, i + n).join(' ')
+        if (ngram.length > 10) { // Only store meaningful phrases
+          this.responseFingerprints.add(ngram)
+        }
+      }
     }
   }
 
@@ -203,24 +224,34 @@ export class AISpeechFilter {
     // Check against common AI phrases
     for (const phrase of this.commonAIPhrases) {
       if (lowerTranscript.includes(phrase)) {
+        console.log(`Filtered AI speech - common phrase: "${phrase}"`)
         return true
       }
     }
     
-    // Check against recent AI responses (exact or close matches)
+    // Check if entire transcript matches any stored response
+    if (this.allAIResponses.has(lowerTranscript)) {
+      console.log('Filtered AI speech - exact match to previous response')
+      return true
+    }
+    
+    // Check against fingerprints for partial matches
+    const transcriptWords = lowerTranscript.split(/\s+/)
+    for (let n = 3; n <= Math.min(10, transcriptWords.length); n++) {
+      for (let i = 0; i <= transcriptWords.length - n; i++) {
+        const ngram = transcriptWords.slice(i, i + n).join(' ')
+        if (this.responseFingerprints.has(ngram)) {
+          console.log(`Filtered AI speech - fingerprint match: "${ngram}"`)
+          return true
+        }
+      }
+    }
+    
+    // Check against recent AI responses with fuzzy matching
     for (const recent of this.recentAIResponses) {
-      // Check for exact match
-      if (lowerTranscript === recent) {
-        return true
-      }
-      
-      // Check for partial match (AI response contained in transcript)
-      if (recent.length > 20 && lowerTranscript.includes(recent.substring(0, 20))) {
-        return true
-      }
-      
-      // Check for transcript contained in AI response (echo of partial response)
-      if (lowerTranscript.length > 10 && recent.includes(lowerTranscript)) {
+      const similarity = this.getSimilarityScore(lowerTranscript, recent)
+      if (similarity > 0.7) { // 70% similarity threshold
+        console.log(`Filtered AI speech - high similarity (${Math.round(similarity * 100)}%) to recent response`)
         return true
       }
     }

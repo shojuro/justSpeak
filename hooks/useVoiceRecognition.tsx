@@ -127,8 +127,16 @@ export function useVoiceRecognition({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
-        }
+          autoGainControl: true,
+          sampleRate: 16000, // Optimal for speech
+          channelCount: 1, // Mono is sufficient for speech
+          // Advanced constraints for better noise handling
+          googEchoCancellation: true,
+          googAutoGainControl: true,
+          googNoiseSuppression: true,
+          googHighpassFilter: true,
+          googTypingNoiseDetection: true
+        } as any
       })
       streamRef.current = stream
       const mediaRecorder = new MediaRecorder(stream, {
@@ -221,8 +229,15 @@ export function useVoiceRecognition({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
-        }
+          autoGainControl: true,
+          sampleRate: 16000,
+          channelCount: 1,
+          googEchoCancellation: true,
+          googAutoGainControl: true,
+          googNoiseSuppression: true,
+          googHighpassFilter: true,
+          googTypingNoiseDetection: true
+        } as any
       })
       // Stop test stream immediately
       testStream.getTracks().forEach(track => track.stop())

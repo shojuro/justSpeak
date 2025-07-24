@@ -21,7 +21,7 @@ export default function SessionControls({
   isLocked = false,
   speechError,
   userTime,
-  voiceControlMode = 'continuous',
+  voiceControlMode = 'push-to-talk',
   onModeToggle,
   onMicrophoneToggle,
   onEndSession,
@@ -79,11 +79,8 @@ export default function SessionControls({
             Your speaking time: {formatTime(userTime)}
           </div>
           <p className="text-xs text-warm-coral/60 mt-1 px-4">
-            {voiceControlMode === 'push-to-talk' 
-              ? <span className="hidden sm:inline">Hold spacebar or click mic button to speak</span>
-              : 'Keep talking to improve your English!'}
-            {voiceControlMode === 'push-to-talk' && 
-              <span className="sm:hidden">Tap mic button to speak</span>}
+            <span className="hidden sm:inline">Hold SPACEBAR or click the mic button to speak</span>
+            <span className="sm:hidden">Tap and hold mic button to speak</span>
           </p>
         </div>
 
@@ -130,9 +127,13 @@ export default function SessionControls({
           
           {/* Center - Microphone button with activity indicator */}
           <div className="relative">
-            {/* Animated ring for listening state */}
+            {/* Multiple animated rings for clear listening state */}
             {isListening && (
-              <div className="absolute inset-0 rounded-full animate-ping bg-warm-coral opacity-75" />
+              <>
+                <div className="absolute inset-0 rounded-full animate-ping bg-warm-coral opacity-75" />
+                <div className="absolute inset-[-4px] rounded-full animate-pulse bg-warm-coral opacity-50" />
+                <div className="absolute inset-[-8px] rounded-full animate-pulse bg-warm-coral opacity-25" />
+              </>
             )}
             
             {/* Microphone button */}
@@ -141,10 +142,10 @@ export default function SessionControls({
               disabled={isSpeaking || isLocked}
               className={`relative p-4 sm:p-5 rounded-full transition-all transform ${
                 isLocked
-                  ? 'bg-red-500/20 text-red-400 cursor-not-allowed'
+                  ? 'bg-red-500/20 text-red-400 cursor-not-allowed ring-4 ring-red-500/30'
                   : isListening
-                  ? 'bg-warm-coral text-white scale-110 shadow-lg'
-                  : 'bg-warm-coral-light text-jet hover:bg-warm-coral hover:text-white'
+                  ? 'bg-green-500 text-white scale-110 shadow-2xl shadow-green-500/50 ring-4 ring-green-500/30'
+                  : 'bg-warm-coral-light text-jet hover:bg-warm-coral hover:text-white ring-2 ring-warm-coral/20'
               } ${isSpeaking || isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
               aria-label={isLocked ? 'Microphone locked' : isListening ? 'Stop recording' : 'Start recording'}
             >
@@ -180,8 +181,8 @@ export default function SessionControls({
               {isListening && (
                 <div className="absolute top-0 right-0 -mt-1 -mr-1">
                   <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                   </span>
                 </div>
               )}
