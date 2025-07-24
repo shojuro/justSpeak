@@ -15,6 +15,7 @@ export default function VoiceControlSettings({
   onSilenceThresholdChange,
   onPatientModeChange
 }: VoiceControlSettingsProps) {
+  // Force push-to-talk mode only for safety
   const [mode, setMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
   const [sensitivity, setSensitivity] = useState(3) // 1-5 scale
   const [silenceThreshold, setSilenceThreshold] = useState(8) // 3-15 seconds
@@ -22,15 +23,14 @@ export default function VoiceControlSettings({
 
   // Load saved preferences on mount
   useEffect(() => {
-    const savedMode = localStorage.getItem('voice_control_mode') as 'continuous' | 'push-to-talk'
+    // ALWAYS use push-to-talk mode for safety
+    setMode('push-to-talk')
+    onModeChange('push-to-talk')
+    localStorage.setItem('voice_control_mode', 'push-to-talk')
+    
     const savedSensitivity = localStorage.getItem('voice_sensitivity')
     const savedThreshold = localStorage.getItem('silence_threshold')
     const savedPatientMode = localStorage.getItem('patient_mode')
-    
-    if (savedMode) {
-      setMode(savedMode)
-      onModeChange(savedMode)
-    }
     if (savedSensitivity) {
       const value = Number(savedSensitivity)
       setSensitivity(value)
@@ -83,58 +83,24 @@ export default function VoiceControlSettings({
       
       <div className="mb-4">
         <label className="block text-sm text-gray-300 mb-2">Microphone Mode</label>
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleModeChange('continuous')}
-            className={`px-4 py-2 rounded ${
-              mode === 'continuous' 
-                ? 'bg-coral text-white' 
-                : 'bg-charcoal text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            Always On
-          </button>
-          <button
-            onClick={() => handleModeChange('push-to-talk')}
-            className={`px-4 py-2 rounded ${
-              mode === 'push-to-talk' 
-                ? 'bg-coral text-white' 
-                : 'bg-charcoal text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            Push to Talk
-          </button>
-        </div>
-        <p className="text-xs text-gray-400 mt-1">
-          {mode === 'continuous' 
-            ? 'Microphone stays on (may cause feedback)' 
-            : 'Hold spacebar or click mic button to speak'}
-        </p>
-      </div>
-
-      {mode === 'continuous' && (
-        <div className="mb-4">
-          <label className="block text-sm text-gray-300 mb-2">
-            Voice Detection Sensitivity
-          </label>
-          <input
-            type="range"
-            min="1"
-            max="5"
-            value={sensitivity}
-            onChange={(e) => handleSensitivityChange(Number(e.target.value))}
-            className="w-full"
-          />
-          <div className="flex justify-between text-xs text-gray-400 mt-1">
-            <span>Low</span>
-            <span>Medium</span>
-            <span>High</span>
-          </div>
-          <p className="text-xs text-gray-400 mt-1">
-            Higher sensitivity = less background noise but may miss quiet speech
+        <div className="bg-charcoal p-3 rounded">
+          <p className="text-sm text-coral font-semibold mb-1">🎤 Push-to-Talk Mode Only</p>
+          <p className="text-xs text-gray-300">
+            For safety and privacy, the microphone requires manual activation.
+            Hold the spacebar or click the mic button to speak.
           </p>
         </div>
-      )}
+        <div className="mt-3 p-3 bg-jet rounded border border-coral/20">
+          <p className="text-xs text-coral-light">
+            <strong>Why Push-to-Talk?</strong><br/>
+            • Prevents the AI from hearing itself<br/>
+            • Ensures privacy for you and your family<br/>
+            • Gives you full control over when to speak
+          </p>
+        </div>
+      </div>
+
+      {/* Voice sensitivity settings removed - not needed for push-to-talk */}
 
       <div className="mb-4">
         <label className="block text-sm text-gray-300 mb-2">

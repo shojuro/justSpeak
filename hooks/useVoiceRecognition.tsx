@@ -27,7 +27,7 @@ export function useVoiceRecognition({
   const recognitionRef = useRef<any>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
-  const sessionManagerRef = useRef<SpeechSessionManager>(new SpeechSessionManager())
+  const streamRef = useRef<MediaStream | null>(null)
 
   // Initialize browser speech recognition
   useEffect(() => {
@@ -123,7 +123,22 @@ export function useVoiceRecognition({
   // Start recording for API-based recognition
   const startAPIRecording = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000, // Optimal for speech
+          channelCount: 1, // Mono is sufficient for speech
+          // Advanced constraints for better noise handling
+          googEchoCancellation: true,
+          googAutoGainControl: true,
+          googNoiseSuppression: true,
+          googHighpassFilter: true,
+          googTypingNoiseDetection: true
+        } as any
+      })
+      streamRef.current = stream
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm'
       })
@@ -210,7 +225,22 @@ export function useVoiceRecognition({
   const startListening = useCallback(async () => {
     // Check microphone permissions first
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true })
+      const testStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000,
+          channelCount: 1,
+          googEchoCancellation: true,
+          googAutoGainControl: true,
+          googNoiseSuppression: true,
+          googHighpassFilter: true,
+          googTypingNoiseDetection: true
+        } as any
+      })
+      // Stop test stream immediately
+      testStream.getTracks().forEach(track => track.stop())
     } catch (err) {
       setError('Microphone access denied. Please allow microphone access in your browser settings.')
       console.error('Microphone permission error:', err)
@@ -283,6 +313,11 @@ export function useVoiceRecognition({
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop()
         setIsListening(false)
+      }
+      // Clean up stream
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
       }
     }
     // Clear transcript when stopping
