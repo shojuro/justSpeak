@@ -25,7 +25,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [isAIThinking, setIsAIThinking] = useState(false)
   const [talkTime, setTalkTime] = useState(0)
   const [userSpeakingTime, setUserSpeakingTime] = useState(0)
-  const [lastTranscript, setLastTranscript] = useState('')
+  const [_lastTranscript, _setLastTranscript] = useState('')
   const [mode, setMode] = useState<'conversation' | 'learning'>('conversation')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [voiceProvider, setVoiceProvider] = useState<'browser' | 'openai' | 'google'>('browser')
@@ -34,7 +34,7 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const [showProviderSettings, setShowProviderSettings] = useState(false)
   const [showDebugPanel, setShowDebugPanel] = useState(process.env.NODE_ENV === 'development')
   const [voiceControlMode, setVoiceControlMode] = useState<'continuous' | 'push-to-talk'>('push-to-talk')
-  const [voiceSensitivity, setVoiceSensitivity] = useState(3)
+  const [_voiceSensitivity, setVoiceSensitivity] = useState(3)
   const [customSilenceThreshold, setCustomSilenceThreshold] = useState<number | null>(null)
   const [patientMode, setPatientMode] = useState(false)
   const [isWaitingForSilence, setIsWaitingForSilence] = useState(false)
@@ -98,9 +98,9 @@ export default function ConversationScreen({ onEnd }: ConversationScreenProps) {
   const { 
     speak: _speak, 
     isSpeaking, 
-    stop: stopSpeaking,
-    error: synthError,
-    isReady: isSynthReady 
+    stop: _stopSpeaking,
+    error: _synthError,
+    isReady: _isSynthReady 
   } = useSpeechSynthesis({
     provider: synthProvider,
     voice: synthProvider === 'elevenlabs' ? elevenLabsVoiceId : 'nova',

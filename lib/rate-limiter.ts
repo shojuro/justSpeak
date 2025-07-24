@@ -32,3 +32,8 @@ export class RateLimiter {
 }
 
 export const defaultRateLimiter = new RateLimiter(60000, 10);
+
+// Helper function for backwards compatibility
+export async function checkRateLimit(identifier: string): Promise<{ allowed: boolean; remaining: number }> {
+  return defaultRateLimiter.checkLimit(identifier);
+}

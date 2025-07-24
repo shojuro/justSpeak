@@ -143,7 +143,17 @@
       "Bash(gh:*)",
       "Bash(wget:*)",
       "Bash(tar:*)",
-      "Bash(timeout 30 gh pr create --title \"fix: Critical speech system issues\" --body \"Fixes echo cancellation, voice synthesis init, and input processing\" --head fix/speech-system-critical-issues)"
+      "Bash(timeout 30 gh pr create --title \"fix: Critical speech system issues\" --body \"Fixes echo cancellation, voice synthesis init, and input processing\" --head fix/speech-system-critical-issues)",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_tab_list",
+      "WebFetch(domain:just-speak-q1n7mhv5u-shojuros-projects.vercel.app)",
+      "Bash(jq:*)",
+      "Bash(dpkg:*)",
+      "Bash(snap list:*)",
+      "Bash(echo:*)",
+      "Bash(npx playwright:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

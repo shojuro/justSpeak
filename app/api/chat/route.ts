@@ -7,7 +7,6 @@ import { AppError, asyncHandler } from '@/lib/error-handler'
 import { messageValidation, userValidation, validateRequestBody } from '@/lib/validation'
 import { RedisRateLimiter } from '@/lib/redis'
 import { createRequestLogger, logger } from '@/lib/logger'
-import { withCors } from '@/lib/cors'
 import { sanitizeInput, validateMessageLength, sanitizeSessionId } from '@/lib/sanitization'
 
 import { RATE_LIMITS, MESSAGE_LIMITS, BLOCKED_TOPICS, OPENAI_CONFIG, SESSION_CONFIG } from '@/lib/constants'
